@@ -53,6 +53,17 @@ namespace DeslandesApp.Domain.Models.Entities
         }
         public void DefinirVinculo(Guid? processoId, Guid? casoId, Guid? atendimentoPaiId)
         {
+            // ✅ valida múltiplos vínculos
+            int total = 0;
+
+            if (processoId.HasValue) total++;
+            if (casoId.HasValue) total++;
+            if (atendimentoPaiId.HasValue) total++;
+
+            if (total > 1)
+                throw new Exception("O atendimento só pode possuir um vínculo.");
+
+            // ✅ limpa tudo antes
             ProcessoId = null;
             Processo = null;
 
@@ -62,6 +73,7 @@ namespace DeslandesApp.Domain.Models.Entities
             AtendimentoPaiId = null;
             AtendimentoPai = null;
 
+            // ✅ define vínculo
             if (processoId.HasValue)
             {
                 ProcessoId = processoId;
@@ -79,10 +91,11 @@ namespace DeslandesApp.Domain.Models.Entities
             if (atendimentoPaiId.HasValue)
             {
                 AtendimentoPaiId = atendimentoPaiId;
-                TipoVinculoId = TipoVinculo.Atendimento; // ✅ correto
+                TipoVinculoId = TipoVinculo.Atendimento;
                 return;
             }
 
+            // ✅ sem vínculo
             TipoVinculoId = null;
         }
     }

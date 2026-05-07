@@ -26,136 +26,289 @@ namespace DeslandesApp.Domain.Services
         IHttpContextAccessor httpContextAccessor, IHistoricoGeralService historicoGeralService,
           FunctionsHelper functionsHelper) : IAtendimentoService
     {
+        //public async Task<CriarAtendimentoClienteResponse> AdicionarAsync(CriarAtendimentoClienteRequest request)
+        //{
+        //    await unitOfWork.BeginTransactionAsync();
+
+        //    //  DTO -> Entidade
+        //    var atendimento = mapper.Map<Atendimento>(request);
+
+        //    //  Normalização
+        //    atendimento.Assunto = atendimento.Assunto?.Trim().ToUpper();
+        //    atendimento.Registro = atendimento.Registro?.Trim();
+        //    atendimento.DataCadastro = DateTime.Now;
+        //    atendimento.DataAtualizacao = DateTime.Now;
+
+        //    //  Responsável
+        //    atendimento.ResponsavelId = request.ResponsavelId;
+
+        //    //  VALIDAÇÃO DE VÍNCULO (AGORA OPCIONAL)
+        //    int count = 0;
+
+        //    if (request.ProcessoId.HasValue) count++;
+        //    if (request.CasoId.HasValue) count++;
+        //    if (request.AtendimentoPaiId.HasValue) count++;
+
+        //    if (count > 1)
+        //        throw new InvalidOperationException("O atendimento não pode ter mais de um vínculo.");
+
+        //    //  RESOLVE VÍNCULO AUTOMATICAMENTE (SE EXISTIR)
+        //    if (request.ProcessoId.HasValue)
+        //    {
+        //        var processo = await unitOfWork.ProcessoRepository.GetByIdAsync(request.ProcessoId.Value);
+
+        //        if (processo == null)
+        //            throw new InvalidOperationException("Processo não encontrado.");
+
+        //        atendimento.ProcessoId = processo.Id;
+        //        atendimento.TipoVinculoId = TipoVinculo.Processo;
+        //    }
+        //    else if (request.CasoId.HasValue)
+        //    {
+        //        var caso = await unitOfWork.CasoRepository.GetByIdAsync(request.CasoId.Value);
+
+        //        if (caso == null)
+        //            throw new InvalidOperationException("Caso não encontrado.");
+
+        //        atendimento.CasoId = caso.Id;
+        //        atendimento.TipoVinculoId = TipoVinculo.Caso;
+        //    }
+        //    else if (request.AtendimentoPaiId.HasValue)
+        //    {
+        //        var atendimentoPai = await unitOfWork.AtendimentoRepository.GetByIdAsync(request.AtendimentoPaiId.Value);
+
+        //        if (atendimentoPai == null)
+        //            throw new InvalidOperationException("Atendimento pai não encontrado.");
+
+        //        atendimento.AtendimentoPaiId = atendimentoPai.Id;
+        //        atendimento.TipoVinculoId = TipoVinculo.Atendimento;
+        //    }
+        //    else
+        //    {
+        //        //  Sem vínculo
+        //        atendimento.TipoVinculoId = null; // IMPORTANTE: TipoVinculo deve ser nullable
+        //    }
+
+        //    //  VALIDA REGRA DE DOMÍNIO
+        //    atendimento.ValidarVinculo();
+
+        //    //  Validação Fluent
+        //    var validator = new AtendimentoValidator();
+        //    var result = validator.Validate(atendimento);
+
+        //    if (!result.IsValid)
+        //        throw new ValidationException(result.Errors);
+
+        //    //  VALIDA RESPONSÁVEL
+        //    if (atendimento.ResponsavelId.HasValue)
+        //    {
+        //        var usuario = await unitOfWork.UsuarioRepository
+        //            .GetByIdAsync(atendimento.ResponsavelId.Value);
+
+        //        if (usuario == null)
+        //            throw new InvalidOperationException("Responsável não encontrado.");
+        //    }
+
+        //    //  Salva Atendimento
+        //    await unitOfWork.AtendimentoRepository.AddAsync(atendimento);
+
+        //    //  N:N - CLIENTES
+        //    if (request.GrupoAtendimentoCliente != null && request.GrupoAtendimentoCliente.Any())
+        //    {
+        //        foreach (var item in request.GrupoAtendimentoCliente)
+        //        {
+        //            var pessoa = await unitOfWork.PessoaRepository.GetByIdAsync(item.PessoaId.Value);
+
+        //            if (pessoa == null)
+        //                throw new InvalidOperationException("Pessoa não encontrada.");
+
+        //            var grupoCliente = new GrupoAtendimentoCliente
+        //            {
+        //                AtendimentoId = atendimento.Id,
+        //                PessoaId = item.PessoaId.Value
+        //            };
+
+        //            await unitOfWork.GrupoAtendimentoClienteRepository.AddAsync(grupoCliente);
+        //        }
+        //    }
+
+        //    //  N:N - ETIQUETAS (OPCIONAL)
+        //    if (request.GrupoAtendimentoEtiquetas != null && request.GrupoAtendimentoEtiquetas.Any())
+        //    {
+        //        foreach (var item in request.GrupoAtendimentoEtiquetas)
+        //        {
+        //            var etiqueta = await unitOfWork.EtiquetaRepository.GetByIdAsync(item.EtiquetaId);
+
+        //            if (etiqueta == null)
+        //                throw new InvalidOperationException("Etiqueta não encontrada.");
+
+        //            var grupoEtiqueta = new GrupoEtiquetasAtendimentos
+        //            {
+        //                AtendimentoId = atendimento.Id,
+        //                EtiquetaId = item.EtiquetaId
+        //            };
+
+        //            await unitOfWork.GrupoEtiquetasAtendimentoRepository.AddAsync(grupoEtiqueta);
+        //        }
+        //    }
+
+        //    //  Commit
+        //    await unitOfWork.CommitAsync();
+
+        //    return mapper.Map<CriarAtendimentoClienteResponse>(atendimento);
+        //}
         public async Task<CriarAtendimentoClienteResponse> AdicionarAsync(CriarAtendimentoClienteRequest request)
         {
             await unitOfWork.BeginTransactionAsync();
 
-            //  DTO -> Entidade
-            var atendimento = mapper.Map<Atendimento>(request);
-
-            //  Normalização
-            atendimento.Assunto = atendimento.Assunto?.Trim().ToUpper();
-            atendimento.Registro = atendimento.Registro?.Trim();
-            atendimento.DataCadastro = DateTime.Now;
-            atendimento.DataAtualizacao = DateTime.Now;
-
-            //  Responsável
-            atendimento.ResponsavelId = request.ResponsavelId;
-
-            //  VALIDAÇÃO DE VÍNCULO (AGORA OPCIONAL)
-            int count = 0;
-
-            if (request.ProcessoId.HasValue) count++;
-            if (request.CasoId.HasValue) count++;
-            if (request.AtendimentoPaiId.HasValue) count++;
-
-            if (count > 1)
-                throw new InvalidOperationException("O atendimento não pode ter mais de um vínculo.");
-
-            //  RESOLVE VÍNCULO AUTOMATICAMENTE (SE EXISTIR)
-            if (request.ProcessoId.HasValue)
+            try
             {
-                var processo = await unitOfWork.ProcessoRepository.GetByIdAsync(request.ProcessoId.Value);
+                // =========================
+                // DTO -> ENTIDADE
+                // =========================
+                var atendimento = mapper.Map<Atendimento>(request);
 
-                if (processo == null)
-                    throw new InvalidOperationException("Processo não encontrado.");
+                // =========================
+                // NORMALIZAÇÃO
+                // =========================
+                atendimento.Assunto = atendimento.Assunto?.Trim().ToUpper();
+                atendimento.Registro = atendimento.Registro?.Trim();
 
-                atendimento.ProcessoId = processo.Id;
-                atendimento.TipoVinculoId = TipoVinculo.Processo;
-            }
-            else if (request.CasoId.HasValue)
-            {
-                var caso = await unitOfWork.CasoRepository.GetByIdAsync(request.CasoId.Value);
+                atendimento.DataCadastro = DateTime.Now;
+                atendimento.DataAtualizacao = DateTime.Now;
 
-                if (caso == null)
-                    throw new InvalidOperationException("Caso não encontrado.");
+                atendimento.ResponsavelId = request.ResponsavelId;
 
-                atendimento.CasoId = caso.Id;
-                atendimento.TipoVinculoId = TipoVinculo.Caso;
-            }
-            else if (request.AtendimentoPaiId.HasValue)
-            {
-                var atendimentoPai = await unitOfWork.AtendimentoRepository.GetByIdAsync(request.AtendimentoPaiId.Value);
+                // =========================
+                // 🔗 DEFINE VÍNCULO
+                // =========================
+                atendimento.DefinirVinculo(
+                    request.ProcessoId,
+                    request.CasoId,
+                    request.AtendimentoPaiId
+                );
 
-                if (atendimentoPai == null)
-                    throw new InvalidOperationException("Atendimento pai não encontrado.");
+                // =========================
+                // ✅ VALIDA DOMÍNIO
+                // =========================
+                atendimento.ValidarVinculo();
 
-                atendimento.AtendimentoPaiId = atendimentoPai.Id;
-                atendimento.TipoVinculoId = TipoVinculo.Atendimento;
-            }
-            else
-            {
-                //  Sem vínculo
-                atendimento.TipoVinculoId = null; // IMPORTANTE: TipoVinculo deve ser nullable
-            }
-
-            //  VALIDA REGRA DE DOMÍNIO
-            atendimento.ValidarVinculo();
-
-            //  Validação Fluent
-            var validator = new AtendimentoValidator();
-            var result = validator.Validate(atendimento);
-
-            if (!result.IsValid)
-                throw new ValidationException(result.Errors);
-
-            //  VALIDA RESPONSÁVEL
-            if (atendimento.ResponsavelId.HasValue)
-            {
-                var usuario = await unitOfWork.UsuarioRepository
-                    .GetByIdAsync(atendimento.ResponsavelId.Value);
-
-                if (usuario == null)
-                    throw new InvalidOperationException("Responsável não encontrado.");
-            }
-
-            //  Salva Atendimento
-            await unitOfWork.AtendimentoRepository.AddAsync(atendimento);
-
-            //  N:N - CLIENTES
-            if (request.GrupoAtendimentoCliente != null && request.GrupoAtendimentoCliente.Any())
-            {
-                foreach (var item in request.GrupoAtendimentoCliente)
+                // =========================
+                // ✅ VALIDA EXISTÊNCIA DO VÍNCULO
+                // =========================
+                if (request.ProcessoId.HasValue)
                 {
-                    var pessoa = await unitOfWork.PessoaRepository.GetByIdAsync(item.PessoaId.Value);
+                    var processo = await unitOfWork.ProcessoRepository
+                        .GetByIdAsync(request.ProcessoId.Value);
 
-                    if (pessoa == null)
-                        throw new InvalidOperationException("Pessoa não encontrada.");
-
-                    var grupoCliente = new GrupoAtendimentoCliente
-                    {
-                        AtendimentoId = atendimento.Id,
-                        PessoaId = item.PessoaId.Value
-                    };
-
-                    await unitOfWork.GrupoAtendimentoClienteRepository.AddAsync(grupoCliente);
+                    if (processo == null)
+                        throw new InvalidOperationException("Processo não encontrado.");
                 }
-            }
 
-            //  N:N - ETIQUETAS (OPCIONAL)
-            if (request.GrupoAtendimentoEtiquetas != null && request.GrupoAtendimentoEtiquetas.Any())
-            {
-                foreach (var item in request.GrupoAtendimentoEtiquetas)
+                if (request.CasoId.HasValue)
                 {
-                    var etiqueta = await unitOfWork.EtiquetaRepository.GetByIdAsync(item.EtiquetaId);
+                    var caso = await unitOfWork.CasoRepository
+                        .GetByIdAsync(request.CasoId.Value);
 
-                    if (etiqueta == null)
-                        throw new InvalidOperationException("Etiqueta não encontrada.");
-
-                    var grupoEtiqueta = new GrupoEtiquetasAtendimentos
-                    {
-                        AtendimentoId = atendimento.Id,
-                        EtiquetaId = item.EtiquetaId
-                    };
-
-                    await unitOfWork.GrupoEtiquetasAtendimentoRepository.AddAsync(grupoEtiqueta);
+                    if (caso == null)
+                        throw new InvalidOperationException("Caso não encontrado.");
                 }
+
+                if (request.AtendimentoPaiId.HasValue)
+                {
+                    var atendimentoPai = await unitOfWork.AtendimentoRepository
+                        .GetByIdAsync(request.AtendimentoPaiId.Value);
+
+                    if (atendimentoPai == null)
+                        throw new InvalidOperationException("Atendimento pai não encontrado.");
+                }
+
+                // =========================
+                // ✅ VALIDAÇÃO FLUENT
+                // =========================
+                var validator = new AtendimentoValidator();
+                var result = validator.Validate(atendimento);
+
+                if (!result.IsValid)
+                    throw new ValidationException(result.Errors);
+
+                // =========================
+                // ✅ VALIDA RESPONSÁVEL
+                // =========================
+                if (atendimento.ResponsavelId.HasValue)
+                {
+                    var usuario = await unitOfWork.UsuarioRepository
+                        .GetByIdAsync(atendimento.ResponsavelId.Value);
+
+                    if (usuario == null)
+                        throw new InvalidOperationException("Responsável não encontrado.");
+                }
+
+                // =========================
+                // 💾 SALVA ATENDIMENTO
+                // =========================
+                await unitOfWork.AtendimentoRepository.AddAsync(atendimento);
+
+                // =========================
+                // 👥 CLIENTES (N:N)
+                // =========================
+                if (request.GrupoAtendimentoCliente?.Any() == true)
+                {
+                    foreach (var item in request.GrupoAtendimentoCliente)
+                    {
+                        var pessoa = await unitOfWork.PessoaRepository
+                            .GetByIdAsync(item.PessoaId.Value);
+
+                        if (pessoa == null)
+                            throw new InvalidOperationException("Pessoa não encontrada.");
+
+                        var grupoCliente = new GrupoAtendimentoCliente
+                        {
+                            AtendimentoId = atendimento.Id,
+                            PessoaId = item.PessoaId.Value
+                        };
+
+                        await unitOfWork.GrupoAtendimentoClienteRepository
+                            .AddAsync(grupoCliente);
+                    }
+                }
+
+                // =========================
+                // 🏷️ ETIQUETAS (N:N)
+                // =========================
+                if (request.GrupoAtendimentoEtiquetas?.Any() == true)
+                {
+                    foreach (var item in request.GrupoAtendimentoEtiquetas)
+                    {
+                        var etiqueta = await unitOfWork.EtiquetaRepository
+                            .GetByIdAsync(item.EtiquetaId);
+
+                        if (etiqueta == null)
+                            throw new InvalidOperationException("Etiqueta não encontrada.");
+
+                        var grupoEtiqueta = new GrupoEtiquetasAtendimentos
+                        {
+                            AtendimentoId = atendimento.Id,
+                            EtiquetaId = item.EtiquetaId
+                        };
+
+                        await unitOfWork.GrupoEtiquetasAtendimentoRepository
+                            .AddAsync(grupoEtiqueta);
+                    }
+                }
+
+                // =========================
+                // ✅ COMMIT
+                // =========================
+                await unitOfWork.CommitAsync();
+
+                return mapper.Map<CriarAtendimentoClienteResponse>(atendimento);
             }
-
-            //  Commit
-            await unitOfWork.CommitAsync();
-
-            return mapper.Map<CriarAtendimentoClienteResponse>(atendimento);
+            catch
+            {
+                await unitOfWork.RollbackAsync();
+                throw;
+            }
         }
         public Task<PageResult<CriarAtendimentoClienteResponse>> ConsultarAsync(int pageNumber, int pageSize)
         {
@@ -237,7 +390,7 @@ namespace DeslandesApp.Domain.Services
                     request.CasoId,
                     request.AtendimentoPaiId
                 );
-
+                atendimento.ValidarVinculo();
                 // =========================
                 // 👥 CLIENTES (RESET)
                 // =========================
