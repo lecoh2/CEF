@@ -210,14 +210,20 @@ namespace DeslandesApp.Domain.Services
                     Instancia = processoAntes.Instancia?.ToString(),
                     Acesso = processoAntes.Acesso?.ToString(),
 
-                    VaraId = processoAntes.VaraId,
                     NomeVara = processoAntes.Vara?.NomeVara,
-                    ForoId = processoAntes.Vara?.ForoId,
                     NomeForo = processoAntes.Vara?.Foro?.NomeForo,
 
-                    Clientes = processoAntes.GrupoClienteProcesso?.Select(x => x.PessoaId).ToList(),
-                    Envolvidos = processoAntes.GrupoEnvolvidosProcesso?.Select(x => x.PessoaId).ToList(),
-                    Etiquetas = processoAntes.GrupoEtiquetasProcessos?.Select(x => x.EtiquetaId).ToList()
+                    Clientes = processoAntes.GrupoClienteProcesso?
+          .Select(x => x.Pessoa?.Nome)
+          .ToList(),
+
+                    Envolvidos = processoAntes.GrupoEnvolvidosProcesso?
+          .Select(x => x.Pessoa?.Nome)
+          .ToList(),
+
+                    Etiquetas = processoAntes.GrupoEtiquetasProcessos?
+          .Select(x => x.Etiqueta?.Nome)
+          .ToList()
                 };
 
                 // =========================
@@ -307,7 +313,6 @@ namespace DeslandesApp.Domain.Services
                 // =========================
                 var processoDepois = await unitOfWork.ProcessoRepository
                     .ConsultarProcessoComRelacionamentosAsync(id);
-
                 var dadosDepois = new
                 {
                     processoDepois.Titulo,
@@ -323,14 +328,20 @@ namespace DeslandesApp.Domain.Services
                     Instancia = processoDepois.Instancia?.ToString(),
                     Acesso = processoDepois.Acesso?.ToString(),
 
-                    VaraId = processoDepois.VaraId,
                     NomeVara = processoDepois.Vara?.NomeVara,
-                    ForoId = processoDepois.Vara?.ForoId,
                     NomeForo = processoDepois.Vara?.Foro?.NomeForo,
 
-                    Clientes = processoDepois.GrupoClienteProcesso?.Select(x => x.PessoaId).ToList(),
-                    Envolvidos = processoDepois.GrupoEnvolvidosProcesso?.Select(x => x.PessoaId).ToList(),
-                    Etiquetas = processoDepois.GrupoEtiquetasProcessos?.Select(x => x.EtiquetaId).ToList()
+                    Clientes = processoDepois.GrupoClienteProcesso?
+                        .Select(x => x.Pessoa?.Nome)
+                        .ToList(),
+
+                    Envolvidos = processoDepois.GrupoEnvolvidosProcesso?
+                        .Select(x => x.Pessoa?.Nome)
+                        .ToList(),
+
+                    Etiquetas = processoDepois.GrupoEtiquetasProcessos?
+                        .Select(x => x.Etiqueta?.Nome)
+                        .ToList()
                 };
 
                 // =========================

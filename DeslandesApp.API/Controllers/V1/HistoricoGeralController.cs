@@ -9,7 +9,7 @@ namespace DeslandesApp.API.Controllers.V1
     [ApiController]
     public class HistoricoGeralController(IHistoricoGeralService historicoGeralService) : ControllerBase
     {
-   
+
         [HttpGet("historico/{entidade}/{entidadeId}")]
         public async Task<IActionResult> ObterHistorico(
     TipoEntidade entidade,
