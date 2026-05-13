@@ -54,6 +54,7 @@ namespace DeslandesApp.Infra.Data.Repositories
            u.NomeUsuario,
            u.Login,
            u.Status,
+           u.DataCadastro ?? DateTime.MinValue,
 
            u.GrupoSetores
                .Where(gs => gs.Setor != null)
@@ -108,6 +109,42 @@ namespace DeslandesApp.Infra.Data.Repositories
                     .ThenInclude(gn => gn.Niveis)
                 .Include(u => u.Fotos) // ✅ traz a foto se houver
                 .FirstOrDefaultAsync(u => u.Id == id);
+        }
+        public async Task<Usuario?> ObterCompletoPorIdAsync(Guid id)
+        {
+            return await dataContext.Usuario
+                .AsNoTracking()
+                .Where(x => x.Id == id)
+
+                // FOTO
+                .Include(x => x.Fotos)
+
+                // SETORES
+                .Include(x => x.GrupoSetores)
+                    .ThenInclude(x => x.Setor)
+
+                // NÍVEIS
+                .Include(x => x.GrupoNiveis)
+                    .ThenInclude(x => x.Niveis)
+
+                // PESSOA
+                .Include(x => x.Pessoa)
+
+                .FirstOrDefaultAsync();
+        }
+        public async Task<Usuario> ConsultarUsuarioCompletoAsync(Guid idUsuario)
+        {
+            return await dataContext.Usuario
+
+                // SETORES
+                .Include(u => u.GrupoSetores)
+                    .ThenInclude(gs => gs.Setor)
+
+                // NÍVEIS
+                .Include(u => u.GrupoNiveis)
+                    .ThenInclude(gn => gn.Niveis)
+
+                .FirstOrDefaultAsync(u => u.Id == idUsuario);
         }
 
     }

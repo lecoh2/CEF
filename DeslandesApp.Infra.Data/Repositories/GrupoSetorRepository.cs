@@ -26,6 +26,14 @@ namespace DeslandesApp.Infra.Data.Repositories
         .Where(gr => gr.IdUsuario == idUsuario && gr.IdSetor == idSetor)
         .FirstOrDefaultAsync();
         }
+        public async Task RemoverPorUsuarioId(Guid usuarioId)
+        {
+            var registros = await dataContext.GrupoSetores
+                .Where(x => x.IdUsuario == usuarioId)
+                .ToListAsync();
+
+            dataContext.GrupoSetores.RemoveRange(registros);
+        }
 
     }
 }

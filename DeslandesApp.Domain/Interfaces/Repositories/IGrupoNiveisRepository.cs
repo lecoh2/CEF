@@ -11,6 +11,7 @@ namespace DeslandesApp.Domain.Interfaces.Repositories
     {
         Task<GrupoNiveis> GetByIdUsuarioIdNivel(Guid idUsuario, Guid idNivel);
         Task<GrupoNiveis> ExistUsuarioNivelAsync(Guid idUsuario, Guid idNivel);
+        Task RemoverPorUsuarioId(Guid usurioId);
     }
 }
 

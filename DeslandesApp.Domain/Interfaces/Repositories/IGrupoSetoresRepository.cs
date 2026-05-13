@@ -11,5 +11,6 @@ namespace DeslandesApp.Domain.Interfaces.Repositories
     {
         Task<GrupoSetores> GetByIdUSuarioIdSetor(Guid idUsuario, Guid idSetor);
         Task<GrupoSetores> ExistUsuarioSetorAsync(Guid idUsuario, Guid idSetor);
+        Task RemoverPorUsuarioId(Guid usurioId);
     }
 }

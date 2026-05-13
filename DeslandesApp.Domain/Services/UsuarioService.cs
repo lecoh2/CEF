@@ -4,6 +4,8 @@ using DeslandesApp.Domain.Helpers;
 using DeslandesApp.Domain.Interfaces.Repositories;
 using DeslandesApp.Domain.Interfaces.Services;
 using DeslandesApp.Domain.Models.Dtos.Requests.Usuarios;
+using DeslandesApp.Domain.Models.Dtos.Responses.GrupoNiveis;
+using DeslandesApp.Domain.Models.Dtos.Responses.GrupoSetores;
 using DeslandesApp.Domain.Models.Dtos.Responses.Nivel;
 using DeslandesApp.Domain.Models.Dtos.Responses.Setor;
 using DeslandesApp.Domain.Models.Dtos.Responses.Usuarios;
@@ -14,6 +16,7 @@ using DeslandesApp.Domain.Utils;
 using DeslandesApp.Domain.Validators;
 using DeslandesApp.Domain.ValueObjects;
 using FluentValidation;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,7 +25,9 @@ using System.Threading.Tasks;
 
 namespace DeslandesApp.Domain.Services
 {
-    public class UsuarioService(IUnitOfWork unitOfWork, IMapper mapper, IJwtTokenService _jwtTokenService) : IUsuarioService
+    public class UsuarioService(IUnitOfWork unitOfWork, IMapper mapper, IHttpContextAccessor httpContextAccessor,
+        IJwtTokenService _jwtTokenService, IHistoricoGeralService historicoGeralService)
+        :  BaseService(httpContextAccessor), IUsuarioService
     {
 
         public async Task<UsuariosResponse> AdicionarAsync(UsuariosRequest request)
@@ -194,24 +199,199 @@ namespace DeslandesApp.Domain.Services
                 throw;
             }
         }
-        public async Task<UsuariosResponse> ModificarAsync(Guid id, UsuarioUpdateRequest request)
+        public async Task<UsuariosResponse> ModificarAsync(
+     Guid id,
+     UsuarioUpdateRequest request)
         {
-            var usuario = await unitOfWork.UsuarioRepository.GetByIdAsync(id);
+            await unitOfWork.BeginTransactionAsync();
 
-            if (usuario == null)
-                throw new KeyNotFoundException("Usuário não encontrado.");
+            try
+            {
+                // =========================
+                // BUSCAR USUÁRIO
+                // =========================
+                var usuario = await unitOfWork.UsuarioRepository.GetByIdAsync(id);
 
-            mapper.Map(request, usuario);
+                if (usuario == null)
+                    throw new ApplicationException("Usuário não encontrado.");
 
-            if (!string.IsNullOrEmpty(request.Senha))
-                usuario.Senha = CryptoHelper.SHA256Encrypt(request.Senha);
-            usuario.Status = Status.Ativo;
-            usuario.DataAtualizacao = DateTime.Now;
+                var usuarioId = ObterUsuarioId();
 
+                // =========================
+                // SNAPSHOT ANTES
+                // =========================
 
-            await unitOfWork.UsuarioRepository.UpdateAsync(usuario);
+                var usuarioAntes =
+                    await unitOfWork.UsuarioRepository
+                        .ConsultarUsuarioCompletoAsync(id);
 
-            return mapper.Map<UsuariosResponse>(usuario);
+                var dadosAntes = new
+                {
+                    usuarioAntes.NomeUsuario,
+                    usuarioAntes.Login,
+
+                    Email =
+                        usuarioAntes.ValorEmail != null
+                            ? usuarioAntes.ValorEmail.EnderecoEmail
+                            : null,
+
+                    usuarioAntes.Status,
+
+                    Setores =
+                        usuarioAntes.GrupoSetores?
+                            .Select(x => x.Setor?.NomeSetor)
+                            .Where(x => !string.IsNullOrEmpty(x))
+                            .ToList(),
+
+                    Niveis =
+                        usuarioAntes.GrupoNiveis?
+                            .Select(x => x.Niveis?.NomeNivel)
+                            .Where(x => !string.IsNullOrEmpty(x))
+                            .ToList()
+                };
+
+                // =========================
+                // CAMPOS BÁSICOS
+                // =========================
+
+                usuario.NomeUsuario = request.NomeUsuario;
+
+                usuario.ValorEmail =
+                    new ValorEmail(request.Email);
+
+                usuario.Login = request.Login;
+
+                usuario.DataAtualizacao = DateTime.Now;
+
+                usuario.Status = Status.Ativo;
+
+                // =========================
+                // SENHA
+                // =========================
+
+                bool senhaAlterada = false;
+
+                if (!string.IsNullOrWhiteSpace(request.Senha))
+                {
+                    usuario.Senha =
+                        CryptoHelper.SHA256Encrypt(request.Senha);
+
+                    senhaAlterada = true;
+                }
+
+                // =========================
+                // RESET GRUPOS SETORES
+                // =========================
+
+                await unitOfWork
+                    .GrupoSetoresRepository
+                    .RemoverPorUsuarioId(id);
+
+                if (request.GrupoSetores?.Any() == true)
+                {
+                    foreach (var item in request.GrupoSetores)
+                    {
+                        await unitOfWork
+                            .GrupoSetoresRepository
+                            .AddAsync(new GrupoSetores
+                            {
+                                IdUsuario = id,
+                                IdSetor = item.IdSetor
+                            });
+                    }
+                }
+
+                // =========================
+                // RESET GRUPOS NÍVEIS
+                // =========================
+
+                await unitOfWork
+                    .GrupoNiveisRepository
+                    .RemoverPorUsuarioId(id);
+
+                if (request.GrupoNiveis?.Any() == true)
+                {
+                    foreach (var item in request.GrupoNiveis)
+                    {
+                        await unitOfWork
+                            .GrupoNiveisRepository
+                            .AddAsync(new GrupoNiveis
+                            {
+                                IdUsuario = id,
+                                IdNivel = item.IdNivel
+                            });
+                    }
+                }
+
+                // =========================
+                // UPDATE
+                // =========================
+
+                await unitOfWork
+                    .UsuarioRepository
+                    .UpdateAsync(usuario);
+
+                // =========================
+                // SNAPSHOT DEPOIS
+                // =========================
+
+                var usuarioDepois =
+                    await unitOfWork.UsuarioRepository
+                        .ConsultarUsuarioCompletoAsync(id);
+
+                var dadosDepois = new
+                {
+                    usuarioDepois.NomeUsuario,
+                    usuarioDepois.Login,
+
+                    Email =
+                        usuarioDepois.ValorEmail != null
+                            ? usuarioDepois.ValorEmail.EnderecoEmail
+                            : null,
+
+                    usuarioDepois.Status,
+
+                    SenhaAlterada = senhaAlterada,
+
+                    Setores =
+                        usuarioDepois.GrupoSetores?
+                            .Select(x => x.Setor?.NomeSetor)
+                            .Where(x => !string.IsNullOrEmpty(x))
+                            .ToList(),
+
+                    Niveis =
+                        usuarioDepois.GrupoNiveis?
+                            .Select(x => x.Niveis?.NomeNivel)
+                            .Where(x => !string.IsNullOrEmpty(x))
+                            .ToList()
+                };
+
+                // =========================
+                // HISTÓRICO
+                // =========================
+
+                await historicoGeralService.RegistrarAsync(
+                    TipoEntidade.Usuario,
+                    id,
+                    usuarioId,
+                    dadosAntes,
+                    dadosDepois,
+                    request.Observacao
+                );
+
+                // =========================
+                // COMMIT
+                // =========================
+
+                await unitOfWork.CommitAsync();
+
+                return mapper.Map<UsuariosResponse>(usuarioDepois);
+            }
+            catch
+            {
+                await unitOfWork.RollbackAsync();
+                throw;
+            }
         }
         public async Task<PageResult<UsuariosResponse>> ConsultarAsync(int pageNumber, int pageSize)
         {
@@ -231,9 +411,11 @@ namespace DeslandesApp.Domain.Services
         }
         public async Task<UsuariosResponse?> ObterPorIdAsync(Guid id)
         {
-            var usuario = await unitOfWork.UsuarioRepository.GetByAsync(u => u.Id == id);
+            var usuario = await unitOfWork.UsuarioRepository.ObterCompletoPorIdAsync(id);
+
             if (usuario == null)
                 return null;
+
             return mapper.Map<UsuariosResponse>(usuario);
         }
         public async Task<UsuariosResponse> ExcluirAsync(Guid id)
@@ -423,7 +605,20 @@ namespace DeslandesApp.Domain.Services
                 u.Login,
                 u.DataCadastro!.Value,
                 u.Status,
-                u.ValorEmail != null ? u.ValorEmail.EnderecoEmail : ""
+                u.ValorEmail != null ? u.ValorEmail.EnderecoEmail : "",
+                 u.GrupoSetores
+            .Select(gs => new GrupoSetorResponse(
+                gs.Setor.Id,
+                gs.Setor.NomeSetor
+            ))
+            .ToList(),
+
+        u.GrupoNiveis
+            .Select(gn => new GrupoNivelResponse(
+                gn.Niveis.Id,
+                gn.Niveis.NomeNivel
+            ))
+            .ToList()
             );
         }
 
@@ -461,21 +656,21 @@ namespace DeslandesApp.Domain.Services
             return paged;
         }
 
-        public async Task DesbloquearUsuario(Guid idUsuario)
+        public async Task DesbloquearUsuario(Guid id)
         {
-            if (idUsuario == Guid.Empty)
+            if (id == Guid.Empty)
                 throw new ApplicationException("Id do usuário inválido.");
 
             await unitOfWork.BeginTransactionAsync();
 
-            var usuario = await unitOfWork.UsuarioRepository.GetByIdAsync(idUsuario);
+            var usuario = await unitOfWork.UsuarioRepository.GetByIdAsync(id);
 
             if (usuario == null)
                 throw new ApplicationException("Usuário não encontrado.");
 
             // Remove tentativas
             await unitOfWork.FailedLoginAttemptRepository
-                .RemoveUserAsync(idUsuario);
+                .RemoveUserAsync(id);
 
             // Atualiza status
             usuario.Status = Status.Ativo;
@@ -485,5 +680,6 @@ namespace DeslandesApp.Domain.Services
 
             await unitOfWork.CommitAsync();
         }
+        
     }
 }

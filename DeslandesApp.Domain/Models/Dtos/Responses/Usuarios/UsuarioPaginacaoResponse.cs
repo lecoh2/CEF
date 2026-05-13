@@ -15,6 +15,7 @@ namespace DeslandesApp.Domain.Models.Dtos.Responses.Usuarios
              string NomeUsuario,
              string Login,
              Status? Status,
+             DateTime DataCadastro,
                List<GrupoSetorPaginacaoResponse> GrupoSetores,
         List<GrupoNivelPaginacaoResponse> GrupoNiveis
      );

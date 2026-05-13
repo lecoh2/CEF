@@ -29,7 +29,7 @@ namespace DeslandesApp.API.Controllers.V1
             });
         }
 
-        [HttpPut("atualizar-usuario{id}")]
+        [HttpPut("atualizar-usuario/{id}")]
         [ProducesResponseType(typeof(UsuariosResponse), 200)]
         public async Task<IActionResult> PutAsync(Guid id, [FromBody] UsuarioUpdateRequest request)
         {
@@ -146,11 +146,11 @@ namespace DeslandesApp.API.Controllers.V1
             return Ok(usuarioPaged);
         }
 
-        [HttpPut("desbloquear-usuario/{idUsuario}")]
-        public async Task<IActionResult> DesbloquearUsuario(Guid idUsuario)
+        [HttpPut("desbloquear-usuario/{id}")]
+        public async Task<IActionResult> DesbloquearUsuario(Guid id)
         {
            
-                await usuarioService.DesbloquearUsuario(idUsuario);
+                await usuarioService.DesbloquearUsuario(id);
 
                 return StatusCode(200, new
                 {
@@ -159,6 +159,14 @@ namespace DeslandesApp.API.Controllers.V1
                 });
         
         }
+        [HttpGet("consultar-usuarios-por-id/{id}")]
+        public async Task<IActionResult> ConsultarUsuarios(Guid id)
+        {
+            var usuario = await usuarioService.ObterPorIdAsync(id);
+
+            return Ok(usuario);
+        }
+
     }
 }
 

@@ -82,11 +82,27 @@ namespace DeslandesApp.Domain.Mappings
                             : new ValorEmail(src.Email)));
 
             CreateMap<Usuario, UsuariosResponse>()
-                .ForCtorParam("Email",
-                    opt => opt.MapFrom(src =>
-                        src.ValorEmail != null
-                            ? src.ValorEmail.EnderecoEmail
-                            : null));
+       .ForCtorParam("Email",
+           opt => opt.MapFrom(src =>
+               src.ValorEmail != null
+                   ? src.ValorEmail.EnderecoEmail
+                   : null))
+
+       .ForCtorParam("GrupoSetores",
+           opt => opt.MapFrom(src =>
+               src.GrupoSetores.Select(gs =>
+                   new GrupoSetorResponse(
+                       gs.Setor.Id,
+                       gs.Setor.NomeSetor
+                   )).ToList()))
+
+       .ForCtorParam("GrupoNiveis",
+           opt => opt.MapFrom(src =>
+               src.GrupoNiveis.Select(gn =>
+                   new GrupoNivelResponse(
+                       gn.Niveis.Id,
+                       gn.Niveis.NomeNivel
+                   )).ToList()));
 
             #endregion
 
