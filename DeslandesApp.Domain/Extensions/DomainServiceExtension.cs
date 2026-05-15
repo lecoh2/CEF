@@ -47,6 +47,8 @@ namespace DeslandesApp.Domain.Extensions
             services.AddScoped<IDetalheAtividadeService, DetalheAtividadeService>();
             services.AddScoped<IComentarioService, ComentarioService>();
             services.AddScoped<IHistoricoGeralService, HistoricoGeralService>();
+            services.AddScoped<IFotoServices, FotoService>();
+            services.AddScoped<ILembreteService, LembreteService>();
             //services.AddTransient<IGrupoNiveisServices, GrupoNiveisService>();
             //services.AddTransient<IGrupoSetoresService, GrupoSetoresService>()
 

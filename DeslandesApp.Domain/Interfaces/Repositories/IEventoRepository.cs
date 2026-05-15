@@ -17,6 +17,7 @@ namespace DeslandesApp.Domain.Interfaces.Repositories
         Task<List<Evento>> GetKanbanAsync();
         Task<Evento?> ObterCompletoPorIdAsync(Guid id);
         Task<List<Evento>> ConsultarUltimosAsync(int quantidade);
+        Task<List<Evento>> ObterEventosLembreteAsync();
     }
 }
 

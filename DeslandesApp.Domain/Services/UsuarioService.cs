@@ -4,6 +4,7 @@ using DeslandesApp.Domain.Helpers;
 using DeslandesApp.Domain.Interfaces.Repositories;
 using DeslandesApp.Domain.Interfaces.Services;
 using DeslandesApp.Domain.Models.Dtos.Requests.Usuarios;
+using DeslandesApp.Domain.Models.Dtos.Responses.Foto;
 using DeslandesApp.Domain.Models.Dtos.Responses.GrupoNiveis;
 using DeslandesApp.Domain.Models.Dtos.Responses.GrupoSetores;
 using DeslandesApp.Domain.Models.Dtos.Responses.Nivel;
@@ -594,10 +595,35 @@ namespace DeslandesApp.Domain.Services
         }
         public async Task<UsuariosResponse> ConsultarUsuariosPerfil(Guid id)
         {
-            var u = await unitOfWork.UsuarioRepository.GetUsuariosComRelacionamentosPerfilAsync(id);
+            var u = await unitOfWork.UsuarioRepository
+                .GetUsuariosComRelacionamentosPerfilAsync(id);
 
             if (u == null)
                 throw new ApplicationException("Usuário não encontrado.");
+
+            var foto = u.Fotos != null
+                ? new FotoResponse
+                {
+                    IdFoto = u.Fotos.Id,
+                    IdUsuario = u.Fotos.Id,
+                    FotoNome = u.Fotos.FotoNome,
+                    FileUrl = u.Fotos.FileUrl
+                }
+                : null;
+
+            var setores = u.GrupoSetores
+                .Select(gs => new GrupoSetorResponse(
+                    gs.Setor.Id,
+                    gs.Setor.NomeSetor
+                ))
+                .ToList();
+
+            var niveis = u.GrupoNiveis
+                .Select(gn => new GrupoNivelResponse(
+                    gn.Niveis.Id,
+                    gn.Niveis.NomeNivel
+                ))
+                .ToList();
 
             return new UsuariosResponse(
                 u.Id,
@@ -605,20 +631,10 @@ namespace DeslandesApp.Domain.Services
                 u.Login,
                 u.DataCadastro!.Value,
                 u.Status,
-                u.ValorEmail != null ? u.ValorEmail.EnderecoEmail : "",
-                 u.GrupoSetores
-            .Select(gs => new GrupoSetorResponse(
-                gs.Setor.Id,
-                gs.Setor.NomeSetor
-            ))
-            .ToList(),
-
-        u.GrupoNiveis
-            .Select(gn => new GrupoNivelResponse(
-                gn.Niveis.Id,
-                gn.Niveis.NomeNivel
-            ))
-            .ToList()
+                u.ValorEmail != null ? u.ValorEmail.EnderecoEmail : string.Empty,
+                foto,
+                setores,
+                niveis
             );
         }
 

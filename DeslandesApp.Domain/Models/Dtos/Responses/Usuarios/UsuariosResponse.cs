@@ -1,4 +1,5 @@
-﻿using DeslandesApp.Domain.Models.Dtos.Responses.GrupoNiveis;
+﻿using DeslandesApp.Domain.Models.Dtos.Responses.Foto;
+using DeslandesApp.Domain.Models.Dtos.Responses.GrupoNiveis;
 using DeslandesApp.Domain.Models.Dtos.Responses.GrupoSetores;
 using DeslandesApp.Domain.Models.Entities;
 using DeslandesApp.Domain.Models.Enum;
@@ -18,8 +19,8 @@ namespace DeslandesApp.Domain.Models.Dtos.Responses.Usuarios
         DateTime DataCadastro,
         Status? Status,
         string Email,
-
-        List<GrupoSetorResponse> GrupoSetores,
+        FotoResponse? Foto,
+    List<GrupoSetorResponse> GrupoSetores,
         List<GrupoNivelResponse> GrupoNiveis
     );
 

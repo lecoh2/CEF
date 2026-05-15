@@ -26,7 +26,7 @@ namespace DeslandesApp.Domain.Interfaces.Repositories
         ILoginHistoryRepository LoginHistoryRepository { get; }
         IEnderecoRepository EnderecoRepository { get; }
         IInformacoesComplementaresRepository InformacoesComplementaresRepository { get;  }
-       
+        IFotoRepository FotoRepository { get; }
         IProcessoRepository ProcessoRepository { get; }
         IGrupoClientesRepository GrupoClientesRepository { get; }
         IGrupoClientesProcessosRepository GrupoClientesProcessosRepository { get; }

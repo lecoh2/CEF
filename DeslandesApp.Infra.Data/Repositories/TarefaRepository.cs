@@ -144,7 +144,48 @@ namespace DeslandesApp.Infra.Data.Repositories
                 .Take(quantidade)
                 .ToListAsync();
         }
+        public async Task<List<Tarefa>> ObterTarefasLembreteAsync(
+      Guid? usuarioId,
+      bool ehAdministrador
+  )
+        {
+            var hoje = DateTime.Today;
 
+            var query = dataContext.Tarefas
+                .Include(t => t.GrupoTarefaResponsaveis)
+                .AsQueryable();
 
+            // ADMIN vê tudo
+            if (!ehAdministrador)
+            {
+                query = query.Where(t =>
+
+                    // criador
+                    t.UsuarioCriacaoId == usuarioId
+
+                    ||
+
+                    // responsável
+                    t.GrupoTarefaResponsaveis
+                        .Any(r => r.UsuarioId == usuarioId)
+                );
+            }
+
+            return await query
+                .Where(t =>
+
+                    t.DataTarefa.HasValue &&
+
+                    t.DataTarefa.Value.Date >= hoje
+
+                    &&
+
+                    t.StatusGeralKanban != StatusGeralKanban.Concluido
+                )
+                .OrderBy(t => t.DataTarefa)
+                .ToListAsync();
+        }
+
+        
     }
 }

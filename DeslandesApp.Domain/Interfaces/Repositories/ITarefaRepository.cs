@@ -18,5 +18,6 @@ namespace DeslandesApp.Domain.Interfaces.Repositories
         Task<List<Tarefa>> GetKanbanAsync();
         Task<Tarefa?> ObterCompletoPorIdAsync(Guid id);
         Task<List<Tarefa>> ConsultarUltimosAsync(int quantidade);
+        Task<List<Tarefa>> ObterTarefasLembreteAsync( Guid? usuarioId,bool ehAdministrador );
     }
 }

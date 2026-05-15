@@ -169,5 +169,27 @@ namespace DeslandesApp.Infra.Data.Repositories
                 .Take(quantidade)
                 .ToListAsync();
         }
+        public async Task<List<Evento>> ObterEventosLembreteAsync()
+        {
+            var hoje = DateOnly.FromDateTime(DateTime.Today);
+
+            return await dataContext.Evento
+                .Where(e =>
+
+                    // evento futuro
+                    e.DataInicial >= hoje
+
+                    ||
+
+                    // evento recorrente ainda válido
+                    (
+                        e.DataFimRecorrencia.HasValue &&
+                        e.DataFimRecorrencia >= hoje
+                    )
+                )
+                .OrderBy(e => e.DataInicial)
+                .ThenBy(e => e.HoraInicial)
+                .ToListAsync();
+        }
     }
 }

@@ -27,6 +27,7 @@ using DeslandesApp.Domain.Models.Dtos.Responses.Caso;
 using DeslandesApp.Domain.Models.Dtos.Responses.EnderecoEndereco;
 using DeslandesApp.Domain.Models.Dtos.Responses.Etiquetas;
 using DeslandesApp.Domain.Models.Dtos.Responses.Evento;
+using DeslandesApp.Domain.Models.Dtos.Responses.Foto;
 using DeslandesApp.Domain.Models.Dtos.Responses.GrupoAtendimentoCliente;
 using DeslandesApp.Domain.Models.Dtos.Responses.GrupoCasoCliente;
 using DeslandesApp.Domain.Models.Dtos.Responses.GrupoCasoEnvolvidos;
@@ -87,7 +88,17 @@ namespace DeslandesApp.Domain.Mappings
                src.ValorEmail != null
                    ? src.ValorEmail.EnderecoEmail
                    : null))
-
+       .ForCtorParam("Foto",
+    opt => opt.MapFrom(src =>
+        src.Fotos != null
+            ? new FotoResponse
+            {
+                IdFoto = src.Fotos.Id,
+                IdUsuario = src.Fotos.Id,
+                FotoNome = src.Fotos.FotoNome,
+                FileUrl = src.Fotos.FileUrl
+            }
+            : null))
        .ForCtorParam("GrupoSetores",
            opt => opt.MapFrom(src =>
                src.GrupoSetores.Select(gs =>
@@ -846,6 +857,10 @@ namespace DeslandesApp.Domain.Mappings
             .ForMember(dest => dest.Texto, opt => opt.MapFrom(src => src.Texto.Trim()));
 
 
+            #endregion
+
+            #region Foto
+            CreateMap<Fotos, FotoResponse>();
             #endregion
         }
     }
