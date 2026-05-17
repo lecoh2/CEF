@@ -249,21 +249,28 @@ namespace DeslandesApp.Domain.Services
         {
             throw new NotImplementedException();
         }
-        public async Task<ProcessoResponse> ModificarAsync(Guid id, ProcessoUpdateRequest request)
+        public async Task<ProcessoResponse> ModificarAsync(
+      Guid id,
+      ProcessoUpdateRequest request)
         {
             await unitOfWork.BeginTransactionAsync();
 
             try
             {
-                var processo = await unitOfWork.ProcessoRepository.GetByIdAsync(id)
-                    ?? throw new ApplicationException("Processo não encontrado.");
+                var processo = await unitOfWork
+                    .ProcessoRepository
+                    .GetByIdAsync(id)
+                    ?? throw new ApplicationException(
+                        "Processo não encontrado."
+                    );
 
                 var usuarioId = ObterUsuarioId();
 
                 // =========================
                 // SNAPSHOT ANTES
                 // =========================
-                var processoAntes = await unitOfWork.ProcessoRepository
+                var processoAntes = await unitOfWork
+                    .ProcessoRepository
                     .ConsultarProcessoComRelacionamentosAsync(id);
 
                 var dadosAntes = new
@@ -279,111 +286,198 @@ namespace DeslandesApp.Domain.Services
                     processoAntes.Observacao,
 
                     Instancia = processoAntes.Instancia?.ToString(),
+
                     Acesso = processoAntes.Acesso?.ToString(),
 
                     NomeVara = processoAntes.Vara?.NomeVara,
+
                     NomeForo = processoAntes.Vara?.Foro?.NomeForo,
 
+                    Responsavel = processoAntes.UsuarioResponsavel != null
+                        ? processoAntes.UsuarioResponsavel.NomeUsuario
+                        : null,
+
                     Clientes = processoAntes.GrupoClienteProcesso?
-          .Select(x => x.Pessoa?.Nome)
-          .ToList(),
+                        .Select(x => x.Pessoa?.Nome)
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .ToList(),
 
                     Envolvidos = processoAntes.GrupoEnvolvidosProcesso?
-          .Select(x => x.Pessoa?.Nome)
-          .ToList(),
+                        .Select(x => x.Pessoa?.Nome)
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .ToList(),
 
                     Etiquetas = processoAntes.GrupoEtiquetasProcessos?
-          .Select(x => x.Etiqueta?.Nome)
-          .ToList()
+                        .Select(x => x.Etiqueta?.Nome)
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .ToList()
                 };
 
                 // =========================
-                // CAMPOS BÁSICOS (MANUAL)
+                // CAMPOS BÁSICOS
                 // =========================
-                processo.Titulo = request.Titulo;
-                processo.Pasta = request.Pasta;
-                processo.NumeroProcesso = request.NumeroProcesso;
-                processo.LinkTribunal = request.LinkTribunal;
-                processo.Objeto = request.Objeto;
+                processo.Titulo = request.Titulo
+                    ?.Trim()
+                    ?.ToUpper();
+
+                processo.Pasta = request.Pasta
+                    ?.Trim()
+                    ?.ToUpper();
+
+                processo.NumeroProcesso = request.NumeroProcesso
+                    ?.Trim();
+
+                processo.LinkTribunal = request.LinkTribunal
+                    ?.Trim();
+
+                processo.Objeto = request.Objeto
+                    ?.Trim();
+
+                processo.Observacao = request.Observacao
+                    ?.Trim();
+
                 processo.ValorCausa = request.ValorCausa;
+
                 processo.ValorCondenacao = request.ValorCondenacao;
+
                 processo.Distribuido = request.Distribuido;
-                processo.Observacao = request.Observacao;
 
                 processo.Instancia = request.Instancia.HasValue
-     ? (Instancia?)request.Instancia.Value
-     : null;
+                    ? (Instancia?)request.Instancia.Value
+                    : null;
+
                 processo.Acesso = request.Acesso.HasValue
                     ? (Acesso?)request.Acesso.Value
                     : null;
 
                 processo.VaraId = request.VaraId;
+
                 processo.AcaoId = request.AcaoId;
-                processo.UsuarioResponsavelId = request.UsuarioResponsavelId;
+
+                processo.UsuarioResponsavelId =
+                    request.UsuarioResponsavelId;
+
+                //processo.DataAtualizacao = DateTime.Now;
+
+                // =========================
+                // ✅ VALIDA VARA
+                // =========================
+                if (processo.VaraId == Guid.Empty)
+                {
+                    throw new InvalidOperationException(
+                        "Vara é obrigatória."
+                    );
+                }
+
+                var vara = await unitOfWork
+                    .VaraRepository
+                    .GetByIdAsync(processo.VaraId);
+
+                if (vara == null)
+                {
+                    throw new InvalidOperationException(
+                        "Vara não encontrada."
+                    );
+                }
+
+                // =========================
+                // ✅ VALIDA RESPONSÁVEL
+                // =========================
+                if (processo.UsuarioResponsavelId.HasValue)
+                {
+                    var usuario = await unitOfWork
+                        .UsuarioRepository
+                        .GetByIdAsync(
+                            processo.UsuarioResponsavelId.Value
+                        );
+
+                    if (usuario == null)
+                    {
+                        throw new InvalidOperationException(
+                            "Usuário responsável não encontrado."
+                        );
+                    }
+                }
 
                 // =========================
                 // 👥 CLIENTES (RESET)
                 // =========================
-                await unitOfWork.GrupoClientesProcessosRepository.RemoverClienteProcessoPorId(id);
+                await unitOfWork
+                    .GrupoClientesProcessosRepository
+                    .RemoverClienteProcessoPorId(id);
 
                 if (request.GrupoClienteProcesso?.Any() == true)
                 {
                     foreach (var item in request.GrupoClienteProcesso)
                     {
-                        await unitOfWork.GrupoClientesProcessosRepository.AddAsync(new GrupoClienteProcesso
-                        {
-                            ProcessoId = id,
-                            PessoaId = item.IdPessoa.Value,
-                            QualificacaoId = item.IdQualificacao
-                        });
+                        await unitOfWork
+                            .GrupoClientesProcessosRepository
+                            .AddAsync(new GrupoClienteProcesso
+                            {
+                                ProcessoId = id,
+                                PessoaId = item.IdPessoa.Value,
+                                QualificacaoId = item.IdQualificacao
+                            });
                     }
                 }
 
                 // =========================
                 // 👥 ENVOLVIDOS (RESET)
                 // =========================
-                await unitOfWork.GrupoEnvolvidosProcessosRepository.RemoverEnvolvidosProcessoPorId(id);
+                await unitOfWork
+                    .GrupoEnvolvidosProcessosRepository
+                    .RemoverEnvolvidosProcessoPorId(id);
 
                 if (request.GrupoEnvolvidosProcesso?.Any() == true)
                 {
                     foreach (var item in request.GrupoEnvolvidosProcesso)
                     {
-                        await unitOfWork.GrupoEnvolvidosProcessosRepository.AddAsync(new GrupoEnvolvidosProcesso
-                        {
-                            ProcessoId = id,
-                            PessoaId = item.IdPessoa,
-                            QualificacaoId = item.IdQualificacao
-                        });
+                        await unitOfWork
+                            .GrupoEnvolvidosProcessosRepository
+                            .AddAsync(new GrupoEnvolvidosProcesso
+                            {
+                                ProcessoId = id,
+                                PessoaId = item.IdPessoa,
+                                QualificacaoId = item.IdQualificacao
+                            });
                     }
                 }
 
                 // =========================
                 // 🏷️ ETIQUETAS (RESET)
                 // =========================
-                await unitOfWork.GrupoEtiquetasProcessosRepository.RemoverEtiquetaProcessoPorId(id);
+                await unitOfWork
+                    .GrupoEtiquetasProcessosRepository
+                    .RemoverEtiquetaProcessoPorId(id);
 
                 if (request.GrupoEtiquetasProcesso?.Any() == true)
                 {
                     foreach (var item in request.GrupoEtiquetasProcesso)
                     {
-                        await unitOfWork.GrupoEtiquetasProcessosRepository.AddAsync(new GrupoEtiquetasProcessos
-                        {
-                            ProcessoId = id,
-                            EtiquetaId = item.EtiquetaId
-                        });
+                        await unitOfWork
+                            .GrupoEtiquetasProcessosRepository
+                            .AddAsync(new GrupoEtiquetasProcessos
+                            {
+                                ProcessoId = id,
+                                EtiquetaId = item.EtiquetaId
+                            });
                     }
                 }
 
                 // =========================
-                // UPDATE
+                // 💾 UPDATE
                 // =========================
-                await unitOfWork.ProcessoRepository.UpdateAsync(processo);
+                await unitOfWork
+                    .ProcessoRepository
+                    .UpdateAsync(processo);
 
                 // =========================
                 // SNAPSHOT DEPOIS
                 // =========================
-                var processoDepois = await unitOfWork.ProcessoRepository
+                var processoDepois = await unitOfWork
+                    .ProcessoRepository
                     .ConsultarProcessoComRelacionamentosAsync(id);
+
                 var dadosDepois = new
                 {
                     processoDepois.Titulo,
@@ -397,26 +491,35 @@ namespace DeslandesApp.Domain.Services
                     processoDepois.Observacao,
 
                     Instancia = processoDepois.Instancia?.ToString(),
+
                     Acesso = processoDepois.Acesso?.ToString(),
 
                     NomeVara = processoDepois.Vara?.NomeVara,
+
                     NomeForo = processoDepois.Vara?.Foro?.NomeForo,
+
+                    Responsavel = processoDepois.UsuarioResponsavel != null
+                        ? processoDepois.UsuarioResponsavel.NomeUsuario
+                        : null,
 
                     Clientes = processoDepois.GrupoClienteProcesso?
                         .Select(x => x.Pessoa?.Nome)
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
                         .ToList(),
 
                     Envolvidos = processoDepois.GrupoEnvolvidosProcesso?
                         .Select(x => x.Pessoa?.Nome)
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
                         .ToList(),
 
                     Etiquetas = processoDepois.GrupoEtiquetasProcessos?
                         .Select(x => x.Etiqueta?.Nome)
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
                         .ToList()
                 };
 
                 // =========================
-                // HISTÓRICO 🔥
+                // 🕘 HISTÓRICO
                 // =========================
                 await historicoGeralService.RegistrarAsync(
                     TipoEntidade.Processo,
@@ -427,9 +530,31 @@ namespace DeslandesApp.Domain.Services
                     request.Observacao
                 );
 
+                // =========================
+                // ✅ COMMIT
+                // =========================
                 await unitOfWork.CommitAsync();
 
-                return mapper.Map<ProcessoResponse>(processoDepois);
+                // =========================
+                // 🔔 NOTIFICAÇÃO
+                // =========================
+                if (processo.UsuarioResponsavelId.HasValue)
+                {
+                    await notificacaoService.CriarNotificacaoAsync(
+                        processo.UsuarioResponsavelId.Value,
+                        "Processo atualizado",
+                        processo.Titulo,
+                        TipoEntidade.Processo,
+                        processo.Id
+                    );
+                }
+
+                // =========================
+                // RETORNO
+                // =========================
+                return mapper.Map<ProcessoResponse>(
+                    processoDepois
+                );
             }
             catch
             {

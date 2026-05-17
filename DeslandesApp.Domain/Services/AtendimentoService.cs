@@ -25,7 +25,7 @@ namespace DeslandesApp.Domain.Services
     public class AtendiemntoService(IUnitOfWork unitOfWork,
     IMapper mapper,
     IHttpContextAccessor httpContextAccessor,
-    IHistoricoGeralService historicoGeralService,
+    IHistoricoGeralService historicoGeralService, INotificacaoService notificacaoService,
           FunctionsHelper functionsHelper) : BaseService(httpContextAccessor),  IAtendimentoService
     {
         //public async Task<CriarAtendimentoClienteResponse> AdicionarAsync(CriarAtendimentoClienteRequest request)
@@ -169,9 +169,11 @@ namespace DeslandesApp.Domain.Services
                 // DTO -> ENTIDADE
                 // =========================
                 var atendimento = mapper.Map<Atendimento>(request);
-                var usuarioId = ObterUsuarioId();
+
+                atendimento.UsuarioCadastroId = ObterUsuarioId();
+
                 // =========================
-                // NORMALIZAÇÃO
+                // 🧹 NORMALIZAÇÃO
                 // =========================
                 atendimento.Assunto = atendimento.Assunto?.Trim().ToUpper();
                 atendimento.Registro = atendimento.Registro?.Trim();
@@ -196,7 +198,7 @@ namespace DeslandesApp.Domain.Services
                 atendimento.ValidarVinculo();
 
                 // =========================
-                // ✅ VALIDA EXISTÊNCIA DO VÍNCULO
+                // 🔍 VALIDA EXISTÊNCIA DO VÍNCULO
                 // =========================
                 if (request.ProcessoId.HasValue)
                 {
@@ -229,13 +231,14 @@ namespace DeslandesApp.Domain.Services
                 // ✅ VALIDAÇÃO FLUENT
                 // =========================
                 var validator = new AtendimentoValidator();
+
                 var result = validator.Validate(atendimento);
 
                 if (!result.IsValid)
                     throw new ValidationException(result.Errors);
 
                 // =========================
-                // ✅ VALIDA RESPONSÁVEL
+                // 👤 VALIDA RESPONSÁVEL
                 // =========================
                 if (atendimento.ResponsavelId.HasValue)
                 {
@@ -247,7 +250,7 @@ namespace DeslandesApp.Domain.Services
                 }
 
                 // =========================
-                // 💾 SALVA ATENDIMENTO
+                // 💾 SALVAR ATENDIMENTO
                 // =========================
                 await unitOfWork.AtendimentoRepository.AddAsync(atendimento);
 
@@ -264,14 +267,13 @@ namespace DeslandesApp.Domain.Services
                         if (pessoa == null)
                             throw new InvalidOperationException("Pessoa não encontrada.");
 
-                        var grupoCliente = new GrupoAtendimentoCliente
-                        {
-                            AtendimentoId = atendimento.Id,
-                            PessoaId = item.PessoaId.Value
-                        };
-
-                        await unitOfWork.GrupoAtendimentoClienteRepository
-                            .AddAsync(grupoCliente);
+                        await unitOfWork
+                            .GrupoAtendimentoClienteRepository
+                            .AddAsync(new GrupoAtendimentoCliente
+                            {
+                                AtendimentoId = atendimento.Id,
+                                PessoaId = item.PessoaId.Value
+                            });
                     }
                 }
 
@@ -288,14 +290,13 @@ namespace DeslandesApp.Domain.Services
                         if (etiqueta == null)
                             throw new InvalidOperationException("Etiqueta não encontrada.");
 
-                        var grupoEtiqueta = new GrupoEtiquetasAtendimentos
-                        {
-                            AtendimentoId = atendimento.Id,
-                            EtiquetaId = item.EtiquetaId
-                        };
-
-                        await unitOfWork.GrupoEtiquetasAtendimentoRepository
-                            .AddAsync(grupoEtiqueta);
+                        await unitOfWork
+                            .GrupoEtiquetasAtendimentoRepository
+                            .AddAsync(new GrupoEtiquetasAtendimentos
+                            {
+                                AtendimentoId = atendimento.Id,
+                                EtiquetaId = item.EtiquetaId
+                            });
                     }
                 }
 
@@ -304,6 +305,30 @@ namespace DeslandesApp.Domain.Services
                 // =========================
                 await unitOfWork.CommitAsync();
 
+                // =========================
+                // 🔔 NOTIFICAÇÃO
+                // =========================
+                if (atendimento.ResponsavelId.HasValue)
+                {
+                    try
+                    {
+                        await notificacaoService.CriarNotificacaoAsync(
+                            atendimento.ResponsavelId.Value,
+                            "Novo atendimento criado",
+                            atendimento.Assunto,
+                            TipoEntidade.Atendimento,
+                            atendimento.Id
+                        );
+                    }
+                    catch
+                    {
+                        // não interrompe fluxo caso notificação falhe
+                    }
+                }
+
+                // =========================
+                // 📤 RETORNO
+                // =========================
                 return mapper.Map<CriarAtendimentoClienteResponse>(atendimento);
             }
             catch
@@ -347,24 +372,28 @@ namespace DeslandesApp.Domain.Services
             throw new NotImplementedException();
         }
 
-        public async Task<CriarAtendimentoClienteResponse> ModificarAsync(Guid id, AtendimentoClienteUpdateRequest request)
+        public async Task<CriarAtendimentoClienteResponse> ModificarAsync(
+      Guid id,
+      AtendimentoClienteUpdateRequest request)
         {
             await unitOfWork.BeginTransactionAsync();
 
             try
             {
-                var atendimento = await unitOfWork.AtendimentoRepository.GetByIdAsync(id)
-                    ?? throw new ApplicationException("Atendimento não encontrado.");
+                var atendimento = await unitOfWork
+                    .AtendimentoRepository
+                    .GetByIdAsync(id)
+                    ?? throw new ApplicationException(
+                        "Atendimento não encontrado."
+                    );
 
                 var usuarioId = ObterUsuarioId();
 
                 // =========================
                 // SNAPSHOT ANTES
                 // =========================
-                // =========================
-                // SNAPSHOT ANTES
-                // =========================
-                var atendimentoAntes = await unitOfWork.AtendimentoRepository
+                var atendimentoAntes = await unitOfWork
+                    .AtendimentoRepository
                     .ConsultarAtendimentoComRelacionamentosAsync(id);
 
                 var dadosAntes = new
@@ -384,6 +413,10 @@ namespace DeslandesApp.Domain.Services
                         ? atendimentoAntes.AtendimentoPai.Assunto
                         : null,
 
+                    Responsavel = atendimentoAntes.Responsavel != null
+                        ? atendimentoAntes.Responsavel.NomeUsuario
+                        : null,
+
                     Clientes = atendimentoAntes.GrupoClientes?
                         .Select(x => x.Pessoa?.Nome)
                         .Where(x => !string.IsNullOrEmpty(x))
@@ -396,21 +429,23 @@ namespace DeslandesApp.Domain.Services
                 };
 
                 // =========================
-                // CAMPOS BÁSICOS (SEM AUTO MAPPER)
+                // CAMPOS BÁSICOS
                 // =========================
-                atendimento.Assunto = request.Assunto;
-                atendimento.Registro = request.Registro;
+                atendimento.Assunto = request.Assunto?.Trim()?.ToUpper();
+
+                atendimento.Registro = request.Registro?.Trim();
 
                 atendimento.ResponsavelId = request.ResponsavelId;
+
                 atendimento.DataAtualizacao = DateTime.Now;
 
                 // =========================
-                // 🔗 VÍNCULO (SEMPRE MANUAL)
+                // 🔗 VÍNCULO
                 // =========================
                 bool requestTemVinculo =
-         request.ProcessoId.HasValue
-      || request.CasoId.HasValue
-      || request.AtendimentoPaiId.HasValue;
+                       request.ProcessoId.HasValue
+                    || request.CasoId.HasValue
+                    || request.AtendimentoPaiId.HasValue;
 
                 if (requestTemVinculo)
                 {
@@ -430,52 +465,78 @@ namespace DeslandesApp.Domain.Services
                         atendimento.ValidarVinculo();
                     }
                 }
+
+                // =========================
+                // ✅ VALIDA RESPONSÁVEL
+                // =========================
+                if (atendimento.ResponsavelId.HasValue)
+                {
+                    var responsavel = await unitOfWork
+                        .UsuarioRepository
+                        .GetByIdAsync(atendimento.ResponsavelId.Value);
+
+                    if (responsavel == null)
+                    {
+                        throw new InvalidOperationException(
+                            "Responsável não encontrado."
+                        );
+                    }
+                }
+
                 // =========================
                 // 👥 CLIENTES (RESET)
                 // =========================
-                await unitOfWork.GrupoAtendimentoClienteRepository.RemoverPorAtendimentoId(id);
+                await unitOfWork
+                    .GrupoAtendimentoClienteRepository
+                    .RemoverPorAtendimentoId(id);
 
                 if (request.GrupoAtendimentoCliente?.Any() == true)
                 {
                     foreach (var item in request.GrupoAtendimentoCliente)
                     {
-                        await unitOfWork.GrupoAtendimentoClienteRepository.AddAsync(new GrupoAtendimentoCliente
-                        {
-                            AtendimentoId = id,
-                            PessoaId = item.PessoaId.Value
-                        });
+                        await unitOfWork
+                            .GrupoAtendimentoClienteRepository
+                            .AddAsync(new GrupoAtendimentoCliente
+                            {
+                                AtendimentoId = id,
+                                PessoaId = item.PessoaId.Value
+                            });
                     }
                 }
 
                 // =========================
                 // 🏷️ ETIQUETAS (RESET)
                 // =========================
-                await unitOfWork.GrupoEtiquetasAtendimentoRepository.RemoverPorAtendimentoId(id);
+                await unitOfWork
+                    .GrupoEtiquetasAtendimentoRepository
+                    .RemoverPorAtendimentoId(id);
 
                 if (request.GrupoAtendimentoEtiqueta?.Any() == true)
                 {
                     foreach (var item in request.GrupoAtendimentoEtiqueta)
                     {
-                        await unitOfWork.GrupoEtiquetasAtendimentoRepository.AddAsync(new GrupoEtiquetasAtendimentos
-                        {
-                            AtendimentoId = id,
-                            EtiquetaId = item.EtiquetaId
-                        });
+                        await unitOfWork
+                            .GrupoEtiquetasAtendimentoRepository
+                            .AddAsync(new GrupoEtiquetasAtendimentos
+                            {
+                                AtendimentoId = id,
+                                EtiquetaId = item.EtiquetaId
+                            });
                     }
                 }
 
                 // =========================
-                // UPDATE ENTIDADE
+                // 💾 UPDATE
                 // =========================
-                await unitOfWork.AtendimentoRepository.UpdateAsync(atendimento);
+                await unitOfWork
+                    .AtendimentoRepository
+                    .UpdateAsync(atendimento);
 
                 // =========================
                 // SNAPSHOT DEPOIS
                 // =========================
-                // =========================
-                // SNAPSHOT DEPOIS
-                // =========================
-                var atendimentoDepois = await unitOfWork.AtendimentoRepository
+                var atendimentoDepois = await unitOfWork
+                    .AtendimentoRepository
                     .ConsultarAtendimentoComRelacionamentosAsync(id);
 
                 var dadosDepois = new
@@ -495,6 +556,10 @@ namespace DeslandesApp.Domain.Services
                         ? atendimentoDepois.AtendimentoPai.Assunto
                         : null,
 
+                    Responsavel = atendimentoDepois.Responsavel != null
+                        ? atendimentoDepois.Responsavel.NomeUsuario
+                        : null,
+
                     Clientes = atendimentoDepois.GrupoClientes?
                         .Select(x => x.Pessoa?.Nome)
                         .Where(x => !string.IsNullOrEmpty(x))
@@ -506,18 +571,43 @@ namespace DeslandesApp.Domain.Services
                         .ToList()
                 };
 
+                // =========================
+                // 🧾 HISTÓRICO
+                // =========================
                 await historicoGeralService.RegistrarAsync(
                     TipoEntidade.Atendimento,
                     id,
-                     usuarioId,
+                    usuarioId,
                     dadosAntes,
                     dadosDepois,
                     request.Observacao
                 );
 
+                // =========================
+                // ✅ COMMIT
+                // =========================
                 await unitOfWork.CommitAsync();
 
-                return mapper.Map<CriarAtendimentoClienteResponse>(atendimentoDepois);
+                // =========================
+                // 🔔 NOTIFICAÇÃO
+                // =========================
+                if (atendimento.ResponsavelId.HasValue)
+                {
+                    await notificacaoService.CriarNotificacaoAsync(
+                        atendimento.ResponsavelId.Value,
+                        "Atendimento atualizado",
+                        atendimento.Assunto,
+                        TipoEntidade.Atendimento,
+                        atendimento.Id
+                    );
+                }
+
+                // =========================
+                // RETORNO
+                // =========================
+                return mapper.Map<CriarAtendimentoClienteResponse>(
+                    atendimentoDepois
+                );
             }
             catch
             {

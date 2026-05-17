@@ -466,13 +466,19 @@ namespace DeslandesApp.Domain.Services
         //        throw;
         //    }
         //}
-        public async Task<CriarEventoResponse> ModificarAsync(Guid id, UpdateEventoRequest request)
+        public async Task<CriarEventoResponse> ModificarAsync(
+      Guid id,
+      UpdateEventoRequest request)
         {
             await unitOfWork.BeginTransactionAsync();
 
             try
             {
-                var evento = await unitOfWork.EventoRepository.GetByIdAsync(id);
+                // =========================
+                // 🔍 BUSCA
+                // =========================
+                var evento = await unitOfWork.EventoRepository
+                    .GetByIdAsync(id);
 
                 if (evento == null)
                     throw new ApplicationException("Evento não encontrado.");
@@ -480,7 +486,7 @@ namespace DeslandesApp.Domain.Services
                 var usuarioId = ObterUsuarioId();
 
                 // =========================
-                // ANTES
+                // 📸 SNAPSHOT ANTES
                 // =========================
                 var eventoAntes = await unitOfWork.EventoRepository
                     .ConsultarEventoComRelacionamentosAsync(id);
@@ -499,31 +505,43 @@ namespace DeslandesApp.Domain.Services
                     eventoAntes.StatusGeralKanban,
 
                     Processo = eventoAntes.Processo != null
-         ? eventoAntes.Processo.Pasta
-         : null,
+                        ? eventoAntes.Processo.Pasta
+                        : null,
 
                     Caso = eventoAntes.Caso != null
-         ? eventoAntes.Caso.Pasta
-         : null,
+                        ? eventoAntes.Caso.Pasta
+                        : null,
 
                     Atendimento = eventoAntes.Atendimento != null
-         ? eventoAntes.Atendimento.Assunto
-         : null,
+                        ? eventoAntes.Atendimento.Assunto
+                        : null,
 
                     TipoVinculo = eventoAntes.TipoVinculoId.ToString(),
 
-                    Responsaveis = eventoAntes.GrupoEventoResponsaveis?
-         .Select(r => r.Usuario?.NomeUsuario)
-         .Where(n => !string.IsNullOrWhiteSpace(n))
-         .ToList(),
+                    Responsaveis = eventoAntes
+                        .GrupoEventoResponsaveis?
+                        .Select(r => r.Usuario?.NomeUsuario)
+                        .Where(n => !string.IsNullOrWhiteSpace(n))
+                        .ToList(),
 
-                    Etiquetas = eventoAntes.GrupoEventoEtiquetas?
-         .Select(e => e.Etiqueta?.Nome)
-         .Where(n => !string.IsNullOrWhiteSpace(n))
-         .ToList()
+                    Etiquetas = eventoAntes
+                        .GrupoEventoEtiquetas?
+                        .Select(e => e.Etiqueta?.Nome)
+                        .Where(n => !string.IsNullOrWhiteSpace(n))
+                        .ToList()
                 };
+
                 // =========================
-                // CAMPOS BÁSICOS
+                // 👥 RESPONSÁVEIS ANTES
+                // =========================
+                var responsaveisAntes = eventoAntes
+                    .GrupoEventoResponsaveis?
+                    .Select(x => x.UsuarioId)
+                    .Distinct()
+                    .ToList() ?? new List<Guid>();
+
+                // =========================
+                // ✏️ CAMPOS BÁSICOS
                 // =========================
                 mapper.Map(request, evento);
 
@@ -550,7 +568,8 @@ namespace DeslandesApp.Domain.Services
 
                 if (request.GrupoEventoResponsavel != null)
                 {
-                    evento.GrupoEventoResponsaveis = request.GrupoEventoResponsavel
+                    evento.GrupoEventoResponsaveis =
+                        request.GrupoEventoResponsavel
                         .Select(x => new GrupoEventoResponsavel
                         {
                             UsuarioId = x.UsuarioId,
@@ -560,13 +579,23 @@ namespace DeslandesApp.Domain.Services
                 }
 
                 // =========================
+                // 👥 RESPONSÁVEIS DEPOIS
+                // =========================
+                var responsaveisDepois = request
+                    .GrupoEventoResponsavel?
+                    .Select(x => x.UsuarioId)
+                    .Distinct()
+                    .ToList() ?? new List<Guid>();
+
+                // =========================
                 // 🏷️ ETIQUETAS
                 // =========================
                 evento.GrupoEventoEtiquetas.Clear();
 
                 if (request.GrupoEventoEtiquetas != null)
                 {
-                    evento.GrupoEventoEtiquetas = request.GrupoEventoEtiquetas
+                    evento.GrupoEventoEtiquetas =
+                        request.GrupoEventoEtiquetas
                         .Select(x => new GrupoEventoEtiquetas
                         {
                             EtiquetaId = x.EtiquetaId,
@@ -582,22 +611,34 @@ namespace DeslandesApp.Domain.Services
                 var hoje = DateOnly.FromDateTime(agora);
                 var horaAtual = TimeOnly.FromDateTime(agora);
 
-                if (evento.DataFinal.HasValue && evento.DataFinal.Value < hoje)
+                if (
+                    evento.DataFinal.HasValue &&
+                    evento.DataFinal.Value < hoje
+                )
                 {
-                    evento.StatusGeralKanban = StatusGeralKanban.Concluido;
+                    evento.StatusGeralKanban =
+                        StatusGeralKanban.Concluido;
                 }
                 else if (evento.DataInicial > hoje)
                 {
-                    evento.StatusGeralKanban = StatusGeralKanban.A_Fazer;
+                    evento.StatusGeralKanban =
+                        StatusGeralKanban.A_Fazer;
                 }
                 else if (
                     evento.DataInicial <= hoje &&
-                    (!evento.DataFinal.HasValue || evento.DataFinal >= hoje) &&
+                    (
+                        !evento.DataFinal.HasValue ||
+                        evento.DataFinal >= hoje
+                    ) &&
                     evento.HoraInicial <= horaAtual &&
-                    (evento.HoraFinal == null || evento.HoraFinal >= horaAtual)
+                    (
+                        evento.HoraFinal == null ||
+                        evento.HoraFinal >= horaAtual
+                    )
                 )
                 {
-                    evento.StatusGeralKanban = StatusGeralKanban.Em_Andamento;
+                    evento.StatusGeralKanban =
+                        StatusGeralKanban.Em_Andamento;
                 }
 
                 // =========================
@@ -620,9 +661,11 @@ namespace DeslandesApp.Domain.Services
                 // 🔁 RECORRÊNCIA
                 // =========================
                 if (evento.IntervaloRecorrencia < 1)
+                {
                     throw new InvalidOperationException(
                         "Intervalo da recorrência deve ser maior ou igual a 1."
                     );
+                }
 
                 if (evento.TipoRecorrencia != TipoRecorrencia.Nenhuma)
                 {
@@ -647,8 +690,12 @@ namespace DeslandesApp.Domain.Services
                     }
 
                     if (
-                        evento.TipoRecorrencia == TipoRecorrencia.Semanal &&
-                        (evento.DiasSemana == null || !evento.DiasSemana.Any())
+                        evento.TipoRecorrencia ==
+                        TipoRecorrencia.Semanal &&
+                        (
+                            evento.DiasSemana == null ||
+                            !evento.DiasSemana.Any()
+                        )
                     )
                     {
                         throw new InvalidOperationException(
@@ -659,8 +706,12 @@ namespace DeslandesApp.Domain.Services
                 else
                 {
                     evento.IntervaloRecorrencia = 1;
-                    evento.DiasSemana = new List<DayOfWeek>();
+
+                    evento.DiasSemana =
+                        new List<DayOfWeek>();
+
                     evento.DataFimRecorrencia = null;
+
                     evento.QuantidadeOcorrencias = null;
                 }
 
@@ -677,12 +728,14 @@ namespace DeslandesApp.Domain.Services
                 // =========================
                 // 💾 UPDATE
                 // =========================
-                await unitOfWork.EventoRepository.UpdateAsync(evento);
+                await unitOfWork.EventoRepository
+                    .UpdateAsync(evento);
 
                 // =========================
-                // DEPOIS
+                // 📸 SNAPSHOT DEPOIS
                 // =========================
-                var eventoDepois = await unitOfWork.EventoRepository
+                var eventoDepois = await unitOfWork
+                    .EventoRepository
                     .ConsultarEventoComRelacionamentosAsync(id);
 
                 var dadosDepois = new
@@ -699,28 +752,31 @@ namespace DeslandesApp.Domain.Services
                     eventoDepois.StatusGeralKanban,
 
                     Processo = eventoDepois.Processo != null
-         ? eventoDepois.Processo.Pasta
-         : null,
+                        ? eventoDepois.Processo.Pasta
+                        : null,
 
                     Caso = eventoDepois.Caso != null
-         ? eventoDepois.Caso.Pasta
-         : null,
+                        ? eventoDepois.Caso.Pasta
+                        : null,
 
                     Atendimento = eventoDepois.Atendimento != null
-         ? eventoDepois.Atendimento.Assunto
-         : null,
+                        ? eventoDepois.Atendimento.Assunto
+                        : null,
 
-                    TipoVinculo = eventoDepois.TipoVinculoId.ToString(),
+                    TipoVinculo =
+                        eventoDepois.TipoVinculoId.ToString(),
 
-                    Responsaveis = eventoDepois.GrupoEventoResponsaveis?
-         .Select(r => r.Usuario?.NomeUsuario)
-         .Where(n => !string.IsNullOrWhiteSpace(n))
-         .ToList(),
+                    Responsaveis = eventoDepois
+                        .GrupoEventoResponsaveis?
+                        .Select(r => r.Usuario?.NomeUsuario)
+                        .Where(n => !string.IsNullOrWhiteSpace(n))
+                        .ToList(),
 
-                    Etiquetas = eventoDepois.GrupoEventoEtiquetas?
-         .Select(e => e.Etiqueta?.Nome)
-         .Where(n => !string.IsNullOrWhiteSpace(n))
-         .ToList()
+                    Etiquetas = eventoDepois
+                        .GrupoEventoEtiquetas?
+                        .Select(e => e.Etiqueta?.Nome)
+                        .Where(n => !string.IsNullOrWhiteSpace(n))
+                        .ToList()
                 };
 
                 // =========================
@@ -732,11 +788,81 @@ namespace DeslandesApp.Domain.Services
                     usuarioId,
                     dadosAntes,
                     dadosDepois,
-                    request.Observacao
+                    "Evento atualizado"
                 );
 
+                // =========================
+                // ✅ COMMIT
+                // =========================
                 await unitOfWork.CommitAsync();
 
+                // =========================
+                // 🔔 NOTIFICAÇÕES
+                // =========================
+                try
+                {
+                    // NOVOS RESPONSÁVEIS
+                    var novosResponsaveis = responsaveisDepois
+                        .Except(responsaveisAntes)
+                        .ToList();
+
+                    foreach (var responsavelId in novosResponsaveis)
+                    {
+                        await notificacaoService.CriarNotificacaoAsync(
+                            responsavelId,
+                            "Você foi adicionado em um evento",
+                            evento.Titulo,
+                            TipoEntidade.Evento,
+                            evento.Id
+                        );
+                    }
+
+                    // STATUS ALTERADO
+                    if (
+                        eventoAntes.StatusGeralKanban !=
+                        eventoDepois.StatusGeralKanban
+                    )
+                    {
+                        foreach (var responsavelId in responsaveisDepois)
+                        {
+                            await notificacaoService.CriarNotificacaoAsync(
+                                responsavelId,
+                                "Status do evento atualizado",
+                                $"Novo status: {eventoDepois.StatusGeralKanban}",
+                                TipoEntidade.Evento,
+                                evento.Id
+                            );
+                        }
+                    }
+
+                    // DATA ALTERADA
+                    if (
+                        eventoAntes.DataInicial != eventoDepois.DataInicial ||
+                        eventoAntes.HoraInicial != eventoDepois.HoraInicial ||
+                        eventoAntes.DataFinal != eventoDepois.DataFinal ||
+                        eventoAntes.HoraFinal != eventoDepois.HoraFinal
+                    )
+                    {
+                        foreach (var responsavelId in responsaveisDepois)
+                        {
+                            await notificacaoService.CriarNotificacaoAsync(
+                                responsavelId,
+                                "Data ou horário do evento alterado",
+                                evento.Titulo,
+                                TipoEntidade.Evento,
+                                evento.Id
+                            );
+                        }
+                    }
+                }
+                catch
+                {
+                    // não interrompe fluxo caso notificação falhe
+                }
+
+                // =========================
+                // 📤 RETORNO
+                // =========================
                 return mapper.Map<CriarEventoResponse>(eventoDepois);
             }
             catch

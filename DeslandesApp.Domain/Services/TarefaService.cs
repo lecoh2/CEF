@@ -345,7 +345,7 @@ namespace DeslandesApp.Domain.Services
             try
             {
                 // =========================
-                // BUSCA
+                // 🔍 BUSCA
                 // =========================
                 var tarefa = await unitOfWork.TarefaRepository
                     .GetByIdAsync(id);
@@ -360,10 +360,7 @@ namespace DeslandesApp.Domain.Services
                 var usuarioId = ObterUsuarioId();
 
                 // =========================
-                // SNAPSHOT ANTES
-                // =========================
-                // =========================
-                // SNAPSHOT ANTES
+                // 📸 SNAPSHOT ANTES
                 // =========================
                 var tarefaAntes = await unitOfWork.TarefaRepository
                     .ConsultarComRelacionamentosAsync(id);
@@ -399,7 +396,16 @@ namespace DeslandesApp.Domain.Services
                 };
 
                 // =========================
-                // CAMPOS BÁSICOS
+                // 👥 RESPONSÁVEIS ANTES
+                // =========================
+                var responsaveisAntes = tarefaAntes
+                    .GrupoTarefaResponsaveis?
+                    .Select(x => x.UsuarioId)
+                    .Distinct()
+                    .ToList() ?? new List<Guid>();
+
+                // =========================
+                // ✏️ CAMPOS BÁSICOS
                 // =========================
                 if (!string.IsNullOrWhiteSpace(request.Descricao))
                 {
@@ -430,9 +436,7 @@ namespace DeslandesApp.Domain.Services
                 int count = 0;
 
                 if (request.ProcessoId.HasValue) count++;
-
                 if (request.CasoId.HasValue) count++;
-
                 if (request.AtendimentoId.HasValue) count++;
 
                 if (count > 1)
@@ -512,9 +516,7 @@ namespace DeslandesApp.Domain.Services
                     foreach (var item in request.ListasTarefa)
                     {
                         if (string.IsNullOrWhiteSpace(item.Descricao))
-                        {
                             continue;
-                        }
 
                         ordem += 10;
 
@@ -522,13 +524,9 @@ namespace DeslandesApp.Domain.Services
                             .AddAsync(new ListaTarefa
                             {
                                 TarefaId = id,
-
                                 Descricao = item.Descricao.Trim(),
-
                                 Ordem = ordem,
-
                                 Concluida = item.Concluida,
-
                                 DataConclusao = item.Concluida
                                     ? DateTime.Now
                                     : null
@@ -601,16 +599,22 @@ namespace DeslandesApp.Domain.Services
                 }
 
                 // =========================
+                // 👥 RESPONSÁVEIS DEPOIS
+                // =========================
+                var responsaveisDepois = request
+                    .GrupoTarefaResponsaveis?
+                    .Select(x => x.UsuarioId)
+                    .Distinct()
+                    .ToList() ?? new List<Guid>();
+
+                // =========================
                 // 💾 UPDATE
                 // =========================
                 await unitOfWork.TarefaRepository
                     .UpdateAsync(tarefa);
 
                 // =========================
-                // SNAPSHOT DEPOIS
-                // =========================
-                // =========================
-                // SNAPSHOT DEPOIS
+                // 📸 SNAPSHOT DEPOIS
                 // =========================
                 var tarefaDepois = await unitOfWork.TarefaRepository
                     .ConsultarComRelacionamentosAsync(id);
@@ -658,12 +662,74 @@ namespace DeslandesApp.Domain.Services
                 );
 
                 // =========================
-                // COMMIT
+                // ✅ COMMIT
                 // =========================
                 await unitOfWork.CommitAsync();
 
                 // =========================
-                // RETORNO
+                // 🔔 NOTIFICAÇÕES
+                // =========================
+                try
+                {
+                    // NOVOS RESPONSÁVEIS
+                    var novosResponsaveis = responsaveisDepois
+                        .Except(responsaveisAntes)
+                        .ToList();
+
+                    foreach (var responsavelId in novosResponsaveis)
+                    {
+                        await notificacaoService.CriarNotificacaoAsync(
+                            responsavelId,
+                            "Você foi adicionado em uma tarefa",
+                            tarefa.Descricao,
+                            TipoEntidade.Tarefa,
+                            tarefa.Id
+                        );
+                    }
+
+                    // STATUS ALTERADO
+                    if (
+                        tarefaAntes.StatusGeralKanban !=
+                        tarefaDepois.StatusGeralKanban
+                    )
+                    {
+                        foreach (var responsavelId in responsaveisDepois)
+                        {
+                            await notificacaoService.CriarNotificacaoAsync(
+                                responsavelId,
+                                "Status da tarefa atualizado",
+                                $"Novo status: {tarefaDepois.StatusGeralKanban}",
+                                TipoEntidade.Tarefa,
+                                tarefa.Id
+                            );
+                        }
+                    }
+
+                    // PRIORIDADE ALTERADA
+                    if (
+                        tarefaAntes.Prioridade !=
+                        tarefaDepois.Prioridade
+                    )
+                    {
+                        foreach (var responsavelId in responsaveisDepois)
+                        {
+                            await notificacaoService.CriarNotificacaoAsync(
+                                responsavelId,
+                                "Prioridade da tarefa alterada",
+                                tarefa.Descricao,
+                                TipoEntidade.Tarefa,
+                                tarefa.Id
+                            );
+                        }
+                    }
+                }
+                catch
+                {
+                    // não interrompe fluxo
+                }
+
+                // =========================
+                // 📤 RETORNO
                 // =========================
                 return mapper.Map<CriarTarefaResponse>(tarefa);
             }
