@@ -16,7 +16,7 @@ namespace DeslandesApp.Domain.Validators
             RuleFor(p => p.Nome)
                 .NotEmpty().WithMessage("O nome é obrigatório")
                 .Length(6, 100).WithMessage("O nome deve conter entre 6 e 100 caracteres");
-
+            RuleFor(p => p.CPF).NotEmpty().WithMessage("O CPF é obrigatório");
      //       RuleFor(p => p.Telefone)
      //.NotEmpty().WithMessage("Informe pelo menos um número de telefone")
      //.Must(t => !string.IsNullOrWhiteSpace(t) &&
@@ -29,9 +29,9 @@ namespace DeslandesApp.Domain.Validators
             //    .NotEmpty()
             //    .WithMessage("Escolha um genero");
 
-            RuleFor(p => p.ValorEmail.EnderecoEmail)
-                .NotEmpty().WithMessage("Informe pelo menos um e-mail para contato")
-                .EmailAddress().WithMessage("Informe um e-mail válido");
+         ////   RuleFor(p => p.ValorEmail.EnderecoEmail)
+         //       .NotEmpty().WithMessage("Informe pelo menos um e-mail para contato")
+         //       .EmailAddress().WithMessage("Informe um e-mail válido");
         }
     }
 }

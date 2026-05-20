@@ -61,6 +61,9 @@ namespace DeslandesApp.Infra.Data.Contexts
         public DbSet<Comentario> Comentario { get; set; }
         public DbSet<HistoricoGeral> HistoricoGeral { get; set; }
         public DbSet<Notificacao> Notificacoes { get; set; }
+        public DbSet<PecaCabivel> PecaCabivel { get; set; }
+        public DbSet<Intimacao> Intimacao { get; set; }
+        public DbSet<LoteTrabalho> LoteTrabalho { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

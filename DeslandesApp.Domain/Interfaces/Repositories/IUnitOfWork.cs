@@ -59,6 +59,11 @@ namespace DeslandesApp.Domain.Interfaces.Repositories
         IComentarioRepository ComentarioRepository { get; }
         IHistoricoGeralRepository HistoricoGeralRepository { get; }
         INotificacaoRepository NotificacaoRepository { get; }
+        IIntimacaoRepository IntimacaoRepository { get; }
+
+        IPecaCabivelRepository PecaCabivelRepository { get; }
+
+        ILoteTrabalhoRepository LoteTrabalhoRepository { get; }
         #endregion
     }
 }

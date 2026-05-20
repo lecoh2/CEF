@@ -51,6 +51,7 @@ namespace DeslandesApp.Domain.Services
                 throw new InvalidOperationException("RG já cadastrado.");
             if (request.Perfil.HasValue &&
     !Enum.IsDefined(typeof(Perfil), request.Perfil.Value))
+
             {
                 throw new ApplicationException("Perfil inválido.");
             }
@@ -68,17 +69,23 @@ namespace DeslandesApp.Domain.Services
             pessoa.Telefone = FunctionsHelper.RemovePontosTracosTelefone(pessoa.Telefone);
             pessoa.DataCadastro = DateTime.Now;
 
-            //pessoa.IdSexo = request.IdSexo;
+                //pessoa.IdSexo = request.IdSexo;
 
-            pessoa.ValorEmail = string.IsNullOrWhiteSpace(pessoa.ValorEmail?.EnderecoEmail)
-                ? new ValorEmail($"nadaconsta{cpf}@email.com")
-                : pessoa.ValorEmail;
+                if (!string.IsNullOrWhiteSpace(pessoa.ValorEmail?.EnderecoEmail))
+                {
+                    if (await unitOfWork.PessoaRepository
+                        .EmailInUseAsync(pessoa.ValorEmail.EnderecoEmail))
+                    {
+                        throw new InvalidOperationException("Email já cadastrado.");
+                    }
+                }
+                else
+                {
+                    pessoa.ValorEmail = null;
+                }
 
-            if (await unitOfWork.PessoaRepository.EmailInUseAsync(pessoa.ValorEmail.EnderecoEmail))
-                throw new InvalidOperationException("Email já cadastrado.");
-
-            // ENDEREÇO
-            if (request.Endereco != null)
+                // ENDEREÇO
+                if (request.Endereco != null)
             {
                 pessoa.Endereco = mapper.Map<Endereco>(request.Endereco);
                 pessoa.Endereco.Cep = FunctionsHelper.RemovePontosTracos(pessoa.Endereco.Cep);

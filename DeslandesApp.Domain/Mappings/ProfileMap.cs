@@ -14,7 +14,10 @@ using DeslandesApp.Domain.Models.Dtos.Requests.GrupoEventoEtiquetas;
 using DeslandesApp.Domain.Models.Dtos.Requests.GrupoNiveis;
 using DeslandesApp.Domain.Models.Dtos.Requests.GrupoSetores;
 using DeslandesApp.Domain.Models.Dtos.Requests.InformacoesComplementares;
+using DeslandesApp.Domain.Models.Dtos.Requests.Intimacao;
+using DeslandesApp.Domain.Models.Dtos.Requests.LoteTrabalho;
 using DeslandesApp.Domain.Models.Dtos.Requests.Nivel;
+using DeslandesApp.Domain.Models.Dtos.Requests.PecaCabivel;
 using DeslandesApp.Domain.Models.Dtos.Requests.Pessoas;
 using DeslandesApp.Domain.Models.Dtos.Requests.Processo;
 using DeslandesApp.Domain.Models.Dtos.Requests.Setor;
@@ -43,8 +46,11 @@ using DeslandesApp.Domain.Models.Dtos.Responses.GrupoPessoasEtiquetas;
 using DeslandesApp.Domain.Models.Dtos.Responses.GrupoSetores;
 using DeslandesApp.Domain.Models.Dtos.Responses.GrupoTarefaResponsaveis;
 using DeslandesApp.Domain.Models.Dtos.Responses.InformacoesComplementares;
+using DeslandesApp.Domain.Models.Dtos.Responses.Intimacao;
 using DeslandesApp.Domain.Models.Dtos.Responses.ListaTarefas;
+using DeslandesApp.Domain.Models.Dtos.Responses.LoteTrabalho;
 using DeslandesApp.Domain.Models.Dtos.Responses.Nivel;
+using DeslandesApp.Domain.Models.Dtos.Responses.PecaCabivel;
 using DeslandesApp.Domain.Models.Dtos.Responses.Pessoas;
 using DeslandesApp.Domain.Models.Dtos.Responses.Processo;
 using DeslandesApp.Domain.Models.Dtos.Responses.Qualificacao;
@@ -861,6 +867,23 @@ namespace DeslandesApp.Domain.Mappings
 
             #region Foto
             CreateMap<Fotos, FotoResponse>();
+            #endregion
+
+            #region CEF
+            #region PECA CABIVEL
+            CreateMap<PecaCabivel, PecaCabivelResponse>();
+            CreateMap<PecaCabivelRequest, PecaCabivel>();
+            #endregion
+            #region LOTETRABALHO
+
+            CreateMap<LoteTrabalho, LoteTrabalhoResponse>();
+            CreateMap<LoteTrabalhoRequest, LoteTrabalho>();
+            #endregion
+
+            #region INTIMACAO
+            CreateMap<Intimacao, IntimacaoResponse>();
+            CreateMap<IntimacaoRequest, Intimacao>();
+            #endregion
             #endregion
         }
     }

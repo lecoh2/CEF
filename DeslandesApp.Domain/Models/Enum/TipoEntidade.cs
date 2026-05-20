@@ -16,5 +16,8 @@ namespace DeslandesApp.Domain.Models.Enum
         Cliente = 6,
         Usuario = 7,
         Pessoa = 8,
+        PecaCabivel=9,
+        LoteTrabalho=10,
+            Intimacao=11
     }
 }

@@ -32,5 +32,8 @@ public class Processo : BaseEntity
     public ICollection<GrupoEnvolvidosProcesso> GrupoEnvolvidosProcesso { get; set; }
     public Instancia? Instancia { get; set; }
     public Acesso? Acesso { get; set; }
-    
+    public Guid? ParteAdversaId { get; set; }
+
+    public virtual Pessoa? ParteAdversa { get; set; }
+
 }

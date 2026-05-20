@@ -21,9 +21,19 @@ namespace DeslandesApp.Domain.Validators
          .Matches(@"^[\p{L}\p{N}\s\.\-\,\/ºª:]+$")
          .WithMessage("O campo deve conter apenas letras, números e caracteres válidos.");
             RuleFor(x => x.LinkTribunal)
-    .Matches(@"^(https?:\/\/)(www\.)?[A-Za-z0-9\-._~:/?#[\]@!$&'()*+,;=%]+$")
-    .WithMessage("Informe um link válido (http ou https).");
-            
+        .Cascade(CascadeMode.Stop)
+        .Must(link =>
+            string.IsNullOrWhiteSpace(link) ||
+            Uri.TryCreate(
+                link.StartsWith("http")
+                    ? link
+                    : $"https://{link}",
+                UriKind.Absolute,
+                out _
+            )
+        )
+        .WithMessage("Informe um link válido.");
+
         }
     }
 }

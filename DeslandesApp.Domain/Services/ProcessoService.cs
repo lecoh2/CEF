@@ -32,6 +32,16 @@ namespace DeslandesApp.Domain.Services
     IHistoricoGeralService historicoGeralService, INotificacaoService notificacaoService
 ) : BaseService(httpContextAccessor), IProcessoService
     {
+        private static readonly Guid QUALIFICACAO_PADRAO_ID =
+      Guid.Parse("CC326C42-E806-44E0-80E4-6779984D4635"); // Sem Qualificação
+
+        private Guid ObterQualificacao(Guid? idQualificacao)
+        {
+            if (idQualificacao.HasValue && idQualificacao.Value != Guid.Empty)
+                return idQualificacao.Value;
+
+            return QUALIFICACAO_PADRAO_ID;
+        }
         public async Task<ProcessoResponse> AdicionarAsync(ProcessoRequest request)
         {
             await unitOfWork.BeginTransactionAsync();
@@ -131,7 +141,7 @@ namespace DeslandesApp.Domain.Services
                             new GrupoClienteProcesso
                             {
                                 ProcessoId = processo.Id,
-                                QualificacaoId = grupos.IdQualificacao,
+                                QualificacaoId = ObterQualificacao(grupos.IdQualificacao),
                                 PessoaId = grupos.IdPessoa.Value
                             }
                         );
@@ -149,7 +159,7 @@ namespace DeslandesApp.Domain.Services
                             new GrupoEnvolvidosProcesso
                             {
                                 ProcessoId = processo.Id,
-                                QualificacaoId = grupos.IdQualificacao,
+                                QualificacaoId = ObterQualificacao(grupos.IdQualificacao),
                                 PessoaId = grupos.IdPessoa
                             }
                         );
@@ -564,8 +574,8 @@ namespace DeslandesApp.Domain.Services
             }
         }
         public async Task<ResultadoImportacaoProcessoResponse> ImportarDistribuicaoAsync(
-     IFormFile file
- )
+            IFormFile file
+        )
         {
             if (file == null || file.Length == 0)
             {
@@ -580,6 +590,9 @@ namespace DeslandesApp.Domain.Services
                 Falhas = 0,
                 Erros = new List<string>()
             };
+
+            // 🔥 LISTA DE NOTIFICAÇÕES
+            var notificacoes = new List<(Guid usuarioId, Processo processo)>();
 
             await unitOfWork.BeginTransactionAsync();
 
@@ -614,9 +627,9 @@ namespace DeslandesApp.Domain.Services
                     .GetAllAsync();
 
                 var todosProcessos = (await unitOfWork
-       .ProcessoRepository
-       .GetAllAsync())
-       .ToList();
+                    .ProcessoRepository
+                    .GetAllAsync())
+                    .ToList();
 
                 var varaPadrao = await unitOfWork
                     .VaraRepository
@@ -807,37 +820,9 @@ namespace DeslandesApp.Domain.Services
                         }
 
                         // =========================
-                        // HISTÓRICO
+                        // GUARDA PARA NOTIFICAR DEPOIS
                         // =========================
-                        await historicoGeralService
-                            .RegistrarAsync(
-                                TipoEntidade.Processo,
-                                processo.Id,
-                                ObterUsuarioId(),
-                                new
-                                {
-                                    ResponsavelAnterior =
-                                        responsavelAnterior
-                                },
-                                new
-                                {
-                                    NovoResponsavel =
-                                        usuario.NomeUsuario
-                                },
-                                "Distribuição automática via importação Excel"
-                            );
-
-                        // =========================
-                        // NOTIFICAÇÃO
-                        // =========================
-                        await notificacaoService
-                            .CriarNotificacaoAsync(
-                                usuario.Id,
-                                "Novo processo distribuído",
-                                processo.Titulo,
-                                TipoEntidade.Processo,
-                                processo.Id
-                            );
+                        notificacoes.Add((usuario.Id, processo));
 
                         resultado.Sucesso++;
                     }
@@ -855,6 +840,43 @@ namespace DeslandesApp.Domain.Services
                 // COMMIT
                 // =========================
                 await unitOfWork.CommitAsync();
+
+                // =========================
+                // 🔔 NOTIFICAÇÕES APÓS COMMIT
+                // =========================
+                var notificacoesAgrupadas = notificacoes
+       .GroupBy(x => x.usuarioId);
+
+                foreach (var grupo in notificacoesAgrupadas)
+                {
+                    try
+                    {
+                        var usuarioId = grupo.Key;
+
+                        var quantidade = grupo.Count();
+
+                        var primeiroProcesso = grupo
+                            .First()
+                            .processo;
+
+                        var mensagem = quantidade == 1
+                            ? "1 novo processo foi distribuído para você."
+                            : $"{quantidade} novos processos foram distribuídos para você.";
+
+                        await notificacaoService
+                            .CriarNotificacaoAsync(
+                                usuarioId,
+                                "Distribuição de processos",
+                                mensagem,
+                                TipoEntidade.Processo,
+                                primeiroProcesso.Id
+                            );
+                    }
+                    catch
+                    {
+                        // não quebra fluxo
+                    }
+                }
 
                 return resultado;
             }

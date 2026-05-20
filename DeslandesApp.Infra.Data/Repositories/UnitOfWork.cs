@@ -57,6 +57,39 @@ namespace DeslandesApp.Infra.Data.Repositories
         private IGrupoEtiquetaCasoRepository? _grupoEtiquetaCasoRepository;
         private IAtendimentoHistoricoRepository? _atendimentoHistoricoRepository;
         private INotificacaoRepository? _notificacaoRepository;
+        private IIntimacaoRepository? _intimacaoRepository;
+        private IPecaCabivelRepository? _pecaCabivelRepository;
+        private ILoteTrabalhoRepository? _loteTrabalhoRepository;
+        public ILoteTrabalhoRepository LoteTrabalhoRepository
+        {
+            get
+            {
+                if (_loteTrabalhoRepository == null)
+                    _loteTrabalhoRepository = new LoteTrabalhoRepository(dataContext);
+
+                return _loteTrabalhoRepository;
+            }
+        }
+        public IPecaCabivelRepository PecaCabivelRepository
+        {
+            get
+            {
+                if (_pecaCabivelRepository == null)
+                    _pecaCabivelRepository = new PecaCabivelRepository(dataContext);
+
+                return _pecaCabivelRepository;
+            }
+        }
+        public IIntimacaoRepository IntimacaoRepository
+        {
+            get
+            {
+                if (_intimacaoRepository == null)
+                    _intimacaoRepository = new IntimacaoRepository(dataContext);
+
+                return _intimacaoRepository;
+            }
+        }
         public INotificacaoRepository NotificacaoRepository
         {
             get

@@ -73,12 +73,18 @@ IHistoricoGeralService historicoGeralService
 
                 // ================== EMAIL ==================
 
-                pessoa.ValorEmail = string.IsNullOrWhiteSpace(pessoa.ValorEmail?.EnderecoEmail)
-                    ? new ValorEmail($"nadaconsta{cnpj}@sistema.local")
-                    : pessoa.ValorEmail;
-
-                if (await unitOfWork.PessoaRepository.EmailInUseAsync(pessoa.ValorEmail.EnderecoEmail))
-                    throw new InvalidOperationException("Email já cadastrado.");
+                if (!string.IsNullOrWhiteSpace(pessoa.ValorEmail?.EnderecoEmail))
+                {
+                    if (await unitOfWork.PessoaRepository
+                        .EmailInUseAsync(pessoa.ValorEmail.EnderecoEmail))
+                    {
+                        throw new InvalidOperationException("Email já cadastrado.");
+                    }
+                }
+                else
+                {
+                    pessoa.ValorEmail = null;
+                }
 
                 // ================== ENDEREÇO ==================
 
