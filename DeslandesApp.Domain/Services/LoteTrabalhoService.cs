@@ -34,82 +34,49 @@ namespace DeslandesApp.Domain.Services
 
             try
             {
-                // =========================
-                // VALIDA USUÁRIO RESPONSÁVEL
-                // =========================
-                var responsavel = await unitOfWork
-                    .UsuarioRepository
-                    .GetByIdAsync(request.ResponsavelId);
+                var responsavel = await unitOfWork.UsuarioRepository
+                    .GetByIdAsync(request.ResponsavelId)
+                    ?? throw new InvalidOperationException("Responsável não encontrado.");
 
-                if (responsavel == null)
-                    throw new InvalidOperationException("Responsável não encontrado.");
+                var coordenadorId = ObterUsuarioId()
+                    ?? throw new InvalidOperationException("Usuário não autenticado.");
 
-                // =========================
-                // COORDENADOR (LOGADO)
-                // =========================
-                var coordenadorId = ObterUsuarioId();
+                var coordenador = await unitOfWork.UsuarioRepository
+                    .GetByIdAsync(coordenadorId)
+                    ?? throw new InvalidOperationException("Coordenador não encontrado.");
 
-                if (!coordenadorId.HasValue)
-                    throw new InvalidOperationException("Usuário não autenticado.");
-
-                var coordenador = await unitOfWork
-                    .UsuarioRepository
-                    .GetByIdAsync(coordenadorId.Value);
-
-                if (coordenador == null)
-                    throw new InvalidOperationException("Coordenador não encontrado.");
-
-                // =========================
-                // GERAR NÚMERO DO LOTE
-                // =========================
-                var ultimoLote = (await unitOfWork
-                    .LoteTrabalhoRepository
-                    .GetAllAsync())
+                var ultimoLote = (await unitOfWork.LoteTrabalhoRepository.GetAllAsync())
                     .OrderByDescending(x => x.DataCriacao)
                     .FirstOrDefault();
 
-                int sequencial = 1;
+                var sequencial = 1;
 
-                if (ultimoLote != null &&
+                if (!string.IsNullOrEmpty(ultimoLote?.NumeroLote) &&
                     ultimoLote.NumeroLote.Contains("-"))
                 {
                     var partes = ultimoLote.NumeroLote.Split('-');
+
                     if (int.TryParse(partes.Last(), out var num))
                         sequencial = num + 1;
                 }
 
-                var numeroLote = $"LOT-{DateTime.Now.Year}-{sequencial:D4}";
-
-                // =========================
-                // CRIA ENTIDADE
-                // =========================
                 var lote = new LoteTrabalho
                 {
                     Id = Guid.NewGuid(),
-                    NumeroLote = numeroLote,
+                    NumeroLote = $"LOT-{DateTime.Now.Year}-{sequencial:D4}",
                     ResponsavelId = request.ResponsavelId,
-                    CoordenadorId = coordenadorId.Value,
+                    CoordenadorId = coordenadorId,
                     DataCriacao = DateTime.Now,
                     DataPrazoLote = request.DataPrazoLote,
                     Status = StatusLote.Aberto
                 };
 
-                // =========================
-                // VALIDAÇÃO (se quiser Fluent depois pode plugar aqui)
-                // =========================
-                if (lote.DataPrazoLote < DateTime.Today)
+                if (lote.DataPrazoLote.Date < DateTime.Today)
                     throw new InvalidOperationException("Prazo do lote não pode ser menor que hoje.");
 
-                // =========================
-                // SALVA
-                // =========================
                 await unitOfWork.LoteTrabalhoRepository.AddAsync(lote);
-
                 await unitOfWork.CommitAsync();
 
-                // =========================
-                // RETORNO (manual ou AutoMapper)
-                // =========================
                 return new LoteTrabalhoResponse
                 {
                     Id = lote.Id,
@@ -166,20 +133,14 @@ namespace DeslandesApp.Domain.Services
 
             try
             {
-                var lote = await unitOfWork
-                    .LoteTrabalhoRepository
+                var usuarioId = ObterUsuarioId()
+                    ?? throw new InvalidOperationException("Usuário não autenticado.");
+
+                var lote = await unitOfWork.LoteTrabalhoRepository
                     .GetByIdAsync(id)
                     ?? throw new InvalidOperationException("Lote não encontrado.");
 
-                var usuarioId = ObterUsuarioId();
-
-                if (!usuarioId.HasValue)
-                    throw new InvalidOperationException("Usuário não autenticado.");
-
-                // =========================
-                // SNAPSHOT
-                // =========================
-                var loteAntes = new
+                var antes = new
                 {
                     lote.NumeroLote,
                     lote.ResponsavelId,
@@ -188,33 +149,21 @@ namespace DeslandesApp.Domain.Services
                     lote.Status
                 };
 
-                // =========================
-                // SOFT DELETE
-                // =========================
                 lote.Excluido = true;
                 lote.DataExclusao = DateTime.Now;
-
-                lote.Status = StatusLote.Cancelado; // se tiver esse status
+                lote.Status = StatusLote.Cancelado;
 
                 await unitOfWork.LoteTrabalhoRepository.UpdateAsync(lote);
 
                 await unitOfWork.CommitAsync();
 
-                // =========================
-                // HISTÓRICO
-                // =========================
                 await historicoGeralService.RegistrarAsync(
                     TipoEntidade.LoteTrabalho,
                     lote.Id,
-                    usuarioId.Value,
-                    loteAntes,
-                    new
-                    {
-                        lote.Excluido,
-                        lote.DataExclusao,
-                        lote.Status
-                    },
-                    "Exclusão lógica de lote de trabalho"
+                    usuarioId,
+                    antes,
+                    new { lote.Excluido, lote.DataExclusao, lote.Status },
+                    "Exclusão lógica de lote"
                 );
 
                 return new LoteTrabalhoResponse
@@ -222,9 +171,7 @@ namespace DeslandesApp.Domain.Services
                     Id = lote.Id,
                     NumeroLote = lote.NumeroLote,
                     ResponsavelId = lote.ResponsavelId,
-                    ResponsavelNome = "",
                     CoordenadorId = lote.CoordenadorId,
-                    CoordenadorNome = "",
                     DataCriacao = lote.DataCriacao,
                     DataPrazoLote = lote.DataPrazoLote,
                     Status = lote.Status,
@@ -238,31 +185,28 @@ namespace DeslandesApp.Domain.Services
             }
         }
 
-        public async Task<LoteTrabalhoResponse> ModificarAsync(
-      Guid id,
-      LoteTrabalhoUpdateRequest request)
+        public async Task<LoteTrabalhoResponse> ModificarAsync(Guid id, LoteTrabalhoUpdateRequest request)
         {
             await unitOfWork.BeginTransactionAsync();
 
             try
             {
-                // =========================
-                // BUSCA LOTE
-                // =========================
-                var lote = await unitOfWork
-                    .LoteTrabalhoRepository
+                var usuarioId = ObterUsuarioId()
+                    ?? throw new InvalidOperationException("Usuário não autenticado.");
+
+                var lote = await unitOfWork.LoteTrabalhoRepository
                     .GetByIdAsync(id)
                     ?? throw new InvalidOperationException("Lote não encontrado.");
 
-                var usuarioId = ObterUsuarioId();
+                var responsavel = await unitOfWork.UsuarioRepository
+                    .GetByIdAsync(request.ResponsavelId)
+                    ?? throw new InvalidOperationException("Responsável não encontrado.");
 
-                if (!usuarioId.HasValue)
-                    throw new InvalidOperationException("Usuário não autenticado.");
+                var coordenador = await unitOfWork.UsuarioRepository
+                    .GetByIdAsync(usuarioId)
+                    ?? throw new InvalidOperationException("Coordenador não encontrado.");
 
-                // =========================
-                // SNAPSHOT ANTES
-                // =========================
-                var loteAntes = new
+                var antes = new
                 {
                     lote.NumeroLote,
                     lote.ResponsavelId,
@@ -271,52 +215,22 @@ namespace DeslandesApp.Domain.Services
                     lote.Status
                 };
 
-                // =========================
-                // VALIDA RESPONSÁVEL
-                // =========================
-                var responsavel = await unitOfWork
-                    .UsuarioRepository
-                    .GetByIdAsync(request.ResponsavelId);
+                if (request.DataPrazoLote.Date < DateTime.Today)
+                    throw new InvalidOperationException("Prazo inválido.");
 
-                if (responsavel == null)
-                    throw new InvalidOperationException("Responsável não encontrado.");
-
-                // =========================
-                // COORDENADOR (LOGADO)
-                // =========================
-                var coordenador = await unitOfWork
-                    .UsuarioRepository
-                    .GetByIdAsync(usuarioId.Value);
-
-                if (coordenador == null)
-                    throw new InvalidOperationException("Coordenador não encontrado.");
-
-                // =========================
-                // ATUALIZAÇÃO
-                // =========================
                 lote.ResponsavelId = request.ResponsavelId;
-                lote.CoordenadorId = usuarioId.Value;
+                lote.CoordenadorId = usuarioId;
                 lote.DataPrazoLote = request.DataPrazoLote;
                 lote.Status = request.Status;
 
-                if (lote.DataPrazoLote < DateTime.Today)
-                    throw new InvalidOperationException("Prazo do lote não pode ser menor que hoje.");
-
                 await unitOfWork.LoteTrabalhoRepository.UpdateAsync(lote);
-
-                // =========================
-                // COMMIT
-                // =========================
                 await unitOfWork.CommitAsync();
 
-                // =========================
-                // HISTÓRICO
-                // =========================
                 await historicoGeralService.RegistrarAsync(
                     TipoEntidade.LoteTrabalho,
                     lote.Id,
-                    usuarioId.Value,
-                    loteAntes,
+                    usuarioId,
+                    antes,
                     new
                     {
                         lote.NumeroLote,
@@ -325,12 +239,9 @@ namespace DeslandesApp.Domain.Services
                         lote.DataPrazoLote,
                         lote.Status
                     },
-                    "Alteração de lote de trabalho"
+                    "Atualização de lote"
                 );
 
-                // =========================
-                // RETORNO
-                // =========================
                 return new LoteTrabalhoResponse
                 {
                     Id = lote.Id,
@@ -352,138 +263,16 @@ namespace DeslandesApp.Domain.Services
             }
         }
 
-        public async Task<PecaCabivelResponse> ModificarAsync(
-          Guid id,
-          PecaCabivelUpdateRequest request)
-        {
-            await unitOfWork.BeginTransactionAsync();
 
-            try
-            {
-                // =========================
-                // BUSCA PEÇA
-                // =========================
-                var peca = await unitOfWork
-                    .PecaCabivelRepository
-                    .GetByIdAsync(id);
-
-                if (peca == null)
-                {
-                    throw new InvalidOperationException(
-                        "Peça cabível não encontrada."
-                    );
-                }
-
-                // =========================
-                // SNAPSHOT ANTES
-                // =========================
-                var dadosAntes = new
-                {
-                    peca.NomePeca,
-                    peca.PrazoDias,
-                    Complexidade =
-                        peca.SugestaoComplexidadePadrao.ToString()
-                };
-
-                // =========================
-                // NORMALIZAÇÃO
-                // =========================
-                peca.NomePeca = request.NomePeca
-                    ?.Trim()
-                    ?.ToUpper();
-
-                peca.PrazoDias = request.PrazoDias;
-
-                peca.SugestaoComplexidadePadrao =
-                    request.SugestaoComplexidadePadrao;
-
-                // =========================
-                // VALIDAÇÃO
-                // =========================
-                var validator = new PecaCabivelValidator();
-
-                var result = validator.Validate(peca);
-
-                if (!result.IsValid)
-                {
-                    throw new ValidationException(
-                        result.Errors
-                    );
-                }
-
-                // =========================
-                // DUPLICIDADE
-                // =========================
-                var existente = await unitOfWork
-                    .PecaCabivelRepository
-                    .GetByAsync(x =>
-                        x.Id != id
-                        &&
-                        x.NomePeca == peca.NomePeca
-                    );
-
-                if (existente != null)
-                {
-                    throw new InvalidOperationException(
-                        "Já existe uma peça cadastrada com esse nome."
-                    );
-                }
-
-                // =========================
-                // UPDATE
-                // =========================
-                await unitOfWork
-                    .PecaCabivelRepository
-                    .UpdateAsync(peca);
-
-                // =========================
-                // SNAPSHOT DEPOIS
-                // =========================
-                var dadosDepois = new
-                {
-                    peca.NomePeca,
-                    peca.PrazoDias,
-                    Complexidade =
-                        peca.SugestaoComplexidadePadrao.ToString()
-                };
-
-                // =========================
-                // HISTÓRICO
-                // =========================
-                await historicoGeralService
-                    .RegistrarAsync(
-                        TipoEntidade.PecaCabivel,
-                        peca.Id,
-                        ObterUsuarioId(),
-                        dadosAntes,
-                        dadosDepois,
-                        "Atualização de peça cabível"
-                    );
-
-                // =========================
-                // COMMIT
-                // =========================
-                await unitOfWork.CommitAsync();
-
-                // =========================
-                // RETORNO
-                // =========================
-                return mapper.Map<PecaCabivelResponse>(peca);
-            }
-            catch
-            {
-                await unitOfWork.RollbackAsync();
-                throw;
-            }
-        }
         public async Task<ObterLoteTrabalhoResponse?> ObterPorIdAsync(Guid id)
         {
-            var processo = await unitOfWork.LoteTrabalhoRepository.ObterCompletoPorIdAsync(id);
+            var lote = await unitOfWork.LoteTrabalhoRepository
+                .ObterCompletoPorIdAsync(id);
 
-            if (processo == null)
+            if (lote == null)
                 return null;
 
-            return mapper.Map<ObterLoteTrabalhoResponse>(processo);
+            return mapper.Map<ObterLoteTrabalhoResponse>(lote);
         }
 
 

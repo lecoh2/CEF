@@ -2,8 +2,10 @@
 using DeslandesApp.Domain.Models.Dtos.Responses.Intimacao;
 using DeslandesApp.Domain.Models.Dtos.Responses.LoteTrabalho;
 using DeslandesApp.Domain.Models.Dtos.Responses.PecaCabivel;
+using DeslandesApp.Domain.Models.Enum;
 using DeslandesApp.Domain.Models.Enum.DeslandesApp.Domain.Models.Enum;
 using DeslandesApp.Domain.Utils;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -34,6 +36,7 @@ namespace DeslandesApp.Domain.Interfaces.Services
      int pageNumber,
      int pageSize);
         Task<IntimacaoDashboardResponse> GetDashboardAsync();
+        Task<ResultadoImportacaoIntimacaoResponse>ImportarAsync(IFormFile arquivo);
 
     }
 }

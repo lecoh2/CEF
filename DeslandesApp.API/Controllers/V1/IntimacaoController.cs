@@ -1,11 +1,9 @@
 ﻿using DeslandesApp.Domain.Interfaces.Services;
 using DeslandesApp.Domain.Models.Dtos.Requests.Intimacao;
 using DeslandesApp.Domain.Models.Dtos.Responses.Intimacao;
-using DeslandesApp.Domain.Models.Enum.DeslandesApp.Domain.Models.Enum;
-using DeslandesApp.Domain.Services;
+using DeslandesApp.Domain.Models.Enum;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-
 namespace DeslandesApp.API.Controllers.V1
 {
     [Route("api/v1/intimacao")]
@@ -47,11 +45,11 @@ namespace DeslandesApp.API.Controllers.V1
             return Ok(new
             {
                 success = true,
-                message = $"Peça {response.NomeAdvogado} atualizado com sucesso.",
+                message = "Intimação atualizada com sucesso.",
                 data = response
             });
         }
-        [HttpDelete("{id}")]
+        [HttpDelete("excluir-intimacao/{id}")]
         public async Task<IActionResult> DeleteAsync(Guid id)
         {
             await intimacaoService.ExcluirAsync(id);
@@ -59,10 +57,10 @@ namespace DeslandesApp.API.Controllers.V1
             return Ok(new
             {
                 success = true,
-                message = "Peça removida com sucesso."
+                message = "Intimação removida com sucesso."
             });
         }
-        [HttpGet("{id}")]
+        [HttpGet("consultar-intimacao-por-id/{id}")]
         [ProducesResponseType(typeof(IntimacaoResponse), 200)]
         public async Task<IActionResult> GetByIdAsync(Guid id)
         {
@@ -84,7 +82,9 @@ namespace DeslandesApp.API.Controllers.V1
             });
         }
         [HttpPut("distribuir-advogado/{id}")]
-        public async Task<IActionResult> DistribuirParaAdvogadoAsync(Guid id, Guid advogadoId)
+        public async Task<IActionResult> DistribuirParaAdvogadoAsync(
+    Guid id,
+    [FromQuery] Guid advogadoId)
         {
             await intimacaoService.DistribuirParaAdvogadoAsync(id, advogadoId);
 
@@ -95,7 +95,9 @@ namespace DeslandesApp.API.Controllers.V1
             });
         }
         [HttpPut("distribuir-lote/{id}")]
-        public async Task<IActionResult> DistribuirParaLoteAsync(Guid id, Guid loteId)
+        public async Task<IActionResult> DistribuirParaLoteAsync(
+    Guid id,
+    [FromQuery] Guid loteId)
         {
             await intimacaoService.DistribuirParaLoteAsync(id, loteId);
 
@@ -105,8 +107,7 @@ namespace DeslandesApp.API.Controllers.V1
                 message = "Intimação distribuída para lote com sucesso."
             });
         }
-        [HttpGet("triagem")]
-        [HttpGet("triagem")]
+        [HttpGet("triagem-paginacao")]
         public async Task<IActionResult> GetTriagemAsync(
     [FromQuery] DateTime? data,
     [FromQuery] StatusTriagem? status,
@@ -127,6 +128,20 @@ namespace DeslandesApp.API.Controllers.V1
             var result = await intimacaoService.GetDashboardAsync();
 
             return Ok(result);
+        }
+        [HttpPost("importar")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> ImportarAsync([FromForm] IFormFile arquivo)
+        {
+            var result =
+                await intimacaoService.ImportarAsync(arquivo);
+
+            return Ok(new
+            {
+                success = true,
+                message = "Importação realizada com sucesso.",
+                data = result
+            });
         }
     }
 }

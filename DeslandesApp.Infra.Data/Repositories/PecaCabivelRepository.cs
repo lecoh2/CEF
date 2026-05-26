@@ -68,6 +68,32 @@ namespace DeslandesApp.Infra.Data.Repositories
                 // futuro: .Include(x => x.Intimacoes)
                 .FirstOrDefaultAsync();
         }
+        public async Task<bool> ExistePorNomeAsync(string nome, Guid? idIgnorar = null)
+        {
+            return await dataContext.PecaCabivel
+                .AsNoTracking()
+                .AnyAsync(x =>
+                    x.NomePeca == nome &&
+                    (!idIgnorar.HasValue || x.Id != idIgnorar.Value)
+                );
+        }
+        public async Task<List<PecaCabivel>> GetAllAtivosAsync()
+        {
+            return await dataContext.PecaCabivel
+                .AsNoTracking()
+                .Where(x => !x.Excluido)
+                .OrderBy(x => x.NomePeca)
+                .ToListAsync();
+        }
+        public async Task<List<PecaCabivel>> BuscarPorTermoAsync(string term)
+        {
+            return await dataContext.PecaCabivel
+                .AsNoTracking()
+                .Where(x => x.NomePeca.Contains(term))
+                .OrderBy(x => x.NomePeca)
+                .Take(10)
+                .ToListAsync();
+        }
 
     }
 }

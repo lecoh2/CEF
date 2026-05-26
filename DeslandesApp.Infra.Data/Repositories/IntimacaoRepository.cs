@@ -1,7 +1,8 @@
 ﻿using DeslandesApp.Domain.Interfaces.Repositories;
 using DeslandesApp.Domain.Models.Dtos.Responses.Intimacao;
-using DeslandesApp.Domain.Models.Dtos.Responses.Processo;
+
 using DeslandesApp.Domain.Models.Entities;
+using DeslandesApp.Domain.Models.Enum;
 using DeslandesApp.Domain.Models.Enum.DeslandesApp.Domain.Models.Enum;
 using DeslandesApp.Domain.Utils;
 using DeslandesApp.Infra.Data.Contexts;
@@ -184,6 +185,22 @@ namespace DeslandesApp.Infra.Data.Repositories
                 DistribuidasLote = distribuidasLote,
                 Concluidas = concluidas
             };
+        }
+        public async Task<bool> ExisteDuplicidadeAsync(
+    Guid processoId,
+    DateTime dataIntimacao,
+    string texto)
+        {
+            return await dataContext.Intimacao
+                .AnyAsync(x =>
+
+                    x.ProcessoId == processoId &&
+
+                    x.DataIntimacao.Date ==
+                        dataIntimacao.Date &&
+
+                    x.TextoIntimacao == texto
+                );
         }
     }
 }

@@ -14,6 +14,8 @@ namespace DeslandesApp.Domain.Interfaces.Services
     {
         Task<PageResult<PecaCabivelPaginacaoResponse>> ConsultarPecaCabivelPaginacaoAsync(int pageNumber, int pageSize, string? searchTerm = null);
         Task<ObterPecacabivelResponse?> ObterPorIdAsync(Guid id);
+        Task<List<PecaCabivelResponse>> ListarAtivosAsync();
+        Task<List<PecaCabivelResponse>> BuscarAsync(string term);
 
     }
 }

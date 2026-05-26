@@ -1,6 +1,6 @@
 ﻿using DeslandesApp.Domain.Models.Dtos.Responses.Intimacao;
 using DeslandesApp.Domain.Models.Entities;
-using DeslandesApp.Domain.Models.Enum.DeslandesApp.Domain.Models.Enum;
+using DeslandesApp.Domain.Models.Enum;
 using DeslandesApp.Domain.Utils;
 using System;
 using System.Collections.Generic;
@@ -23,6 +23,10 @@ namespace DeslandesApp.Domain.Interfaces.Repositories
     int pageSize);
 
         Task<IntimacaoDashboardResponse> GetDashboardAsync();
+        Task<bool> ExisteDuplicidadeAsync(
+    Guid processoId,
+    DateTime dataIntimacao,
+    string texto);
     }
 }
 

@@ -1,4 +1,5 @@
 ﻿using DeslandesApp.Domain.Commons;
+using DeslandesApp.Domain.Models.Enum;
 using DeslandesApp.Domain.Models.Enum.DeslandesApp.Domain.Models.Enum;
 using System;
 using System.Collections.Generic;

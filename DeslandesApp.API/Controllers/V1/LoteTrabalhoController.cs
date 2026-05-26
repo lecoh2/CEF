@@ -38,7 +38,7 @@ namespace DeslandesApp.API.Controllers.V1
 
             return Ok(loteTrabalhoPaged);
         }
-        [HttpPut("atualizar-lote-tr/{id}")]
+        [HttpPut("atualizar-lote-trabalho/{id}")]
         [ProducesResponseType(typeof(LoteTrabalhoResponse), 200)]
         public async Task<IActionResult> PutAsync(Guid id, [FromBody] LoteTrabalhoUpdateRequest request)
         {
@@ -50,7 +50,7 @@ namespace DeslandesApp.API.Controllers.V1
                 data = response
             });
         }
-        [HttpDelete("{id}")]
+        [HttpDelete("exluir-lote-de-trabalho/{id}")]
         public async Task<IActionResult> DeleteAsync(Guid id)
         {
             await loteTrabalholService.ExcluirAsync(id);
@@ -61,7 +61,7 @@ namespace DeslandesApp.API.Controllers.V1
                 message = "Lote removida com sucesso."
             });
         }
-        [HttpGet("{id}")]
+        [HttpGet("consular-lote-de-trabalho-por-id/{id}")]
         [ProducesResponseType(typeof(LoteTrabalhoResponse), 200)]
         public async Task<IActionResult> GetByIdAsync(Guid id)
         {

@@ -14,6 +14,9 @@ namespace DeslandesApp.Domain.Interfaces.Repositories
     {
         Task<PageResult<PecaCabivelPaginacaoResponse>> GetPecaCabivelPaginacaoAsync(int pageNumber, int pageSize, string? searchTerm = null);
         Task<PecaCabivel?> ObterCompletoPorIdAsync(Guid id);
+        Task<List<PecaCabivel>> BuscarPorTermoAsync(string term);
+        Task<bool> ExistePorNomeAsync(string nome, Guid? idIgnorar = null);
+        Task<List<PecaCabivel>> GetAllAtivosAsync();
 
     }
 }

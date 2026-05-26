@@ -208,6 +208,13 @@ namespace DeslandesApp.Infra.Data.Repositories
         {
             return dataContext.Processos.CountAsync();
         }
+        public async Task<Processo?> ObterPorNumeroAsync(string numeroProcesso)
+        {
+            return await dataContext.Processos
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x =>
+                    x.NumeroProcesso == numeroProcesso);
+        }
 
 
     }
