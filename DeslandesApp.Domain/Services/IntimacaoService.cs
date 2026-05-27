@@ -118,35 +118,7 @@ namespace DeslandesApp.Domain.Services
         {
            unitOfWork.Dispose();
         }
-
-        public async Task DistribuirParaAdvogadoAsync(Guid intimacaoId, Guid advogadoId)
-        {
-            await unitOfWork.BeginTransactionAsync();
-
-            try
-            {
-                var intimacao = await unitOfWork.IntimacaoRepository.GetByIdAsync(intimacaoId)
-                    ?? throw new InvalidOperationException("Intimação não encontrada.");
-
-                _ = await unitOfWork.UsuarioRepository.GetByIdAsync(advogadoId)
-                    ?? throw new InvalidOperationException("Advogado não encontrado.");
-
-                if (intimacao.LoteId.HasValue)
-                    throw new InvalidOperationException("Já pertence a lote.");
-
-                intimacao.AdvogadoId = advogadoId;
-                intimacao.LoteId = null;
-                intimacao.StatusTriagem = StatusTriagem.Triada;
-
-                await unitOfWork.IntimacaoRepository.UpdateAsync(intimacao);
-                await unitOfWork.CommitAsync();
-            }
-            catch
-            {
-                await unitOfWork.RollbackAsync();
-                throw;
-            }
-        }
+       
         public async Task DistribuirParaLoteAsync(Guid intimacaoId, Guid loteId)
         {
             await unitOfWork.BeginTransactionAsync();
@@ -500,183 +472,153 @@ namespace DeslandesApp.Domain.Services
             return await unitOfWork.IntimacaoRepository
                 .GetDashboardAsync();
         }
-        public async Task<ResultadoImportacaoIntimacaoResponse>
-       ImportarAsync(IFormFile arquivo)
+        public async Task<ResultadoImportacaoIntimacaoResponse> ImportarAsync(IFormFile arquivo)
         {
-            var response =
-                new ResultadoImportacaoIntimacaoResponse();
+            await unitOfWork.BeginTransactionAsync();
 
-            if (arquivo == null || arquivo.Length == 0)
-                throw new Exception("Arquivo inválido.");
-
-            using var stream =
-                new MemoryStream();
-
-            await arquivo.CopyToAsync(stream);
-
-            stream.Position = 0;
-
-            using var workbook =
-                new XLWorkbook(stream);
-
-            var worksheet =
-                workbook.Worksheet(1);
-
-            var rows =
-                worksheet.RowsUsed().Skip(1);
-
-            response = response with
+            try
             {
-                TotalLinhas = rows.Count()
-            };
+                var response = new ResultadoImportacaoIntimacaoResponse();
 
-            foreach (var row in rows)
-            {
-                try
+                if (arquivo == null || arquivo.Length == 0)
+                    throw new Exception("Arquivo inválido.");
+
+                using var stream = new MemoryStream();
+                await arquivo.CopyToAsync(stream);
+                stream.Position = 0;
+
+                using var workbook = new XLWorkbook(stream);
+                var worksheet = workbook.Worksheet(1);
+                var rows = worksheet.RowsUsed().Skip(1);
+
+                response = response with
                 {
-                    // ================== LEITURA ==================
+                    TotalLinhas = rows.Count()
+                };
 
-                    var numeroProcesso =
-                        row.Cell(1).GetString().Trim();
+                foreach (var row in rows)
+                {
+                    var numeroProcesso = row.Cell(1).GetString().Trim();
+                    var dataIntimacao = row.Cell(2).GetDateTime();
+                    var texto = row.Cell(3).GetString().Trim();
 
-                    var dataIntimacao =
-                        row.Cell(2).GetDateTime();
-
-                    var texto =
-                        row.Cell(3).GetString().Trim();
-
-                    // ================== VALIDAÇÕES ==================
-
-                    if (string.IsNullOrWhiteSpace(numeroProcesso))
-                    {
-                        response.Erros.Add(
-                            "Número do processo inválido.");
-
+                    if (string.IsNullOrWhiteSpace(numeroProcesso) || string.IsNullOrWhiteSpace(texto))
                         continue;
-                    }
 
-                    if (string.IsNullOrWhiteSpace(texto))
-                    {
-                        response.Erros.Add(
-                            $"Texto da intimação vazio no processo {numeroProcesso}.");
-
-                        continue;
-                    }
-
-                    // ================== PROCESSO ==================
-
-                    var processo =
-                        await unitOfWork.ProcessoRepository
-                            .ObterPorNumeroAsync(
-                                numeroProcesso);
+                    var processo = await unitOfWork.ProcessoRepository
+                        .ObterPorNumeroAsync(numeroProcesso);
 
                     if (processo == null)
-                    {
-                        response.ProcessosNaoEncontrados.Add(
-                            new ProcessoNaoEncontradoResponse
-                            {
-                                NumeroProcesso = numeroProcesso
-                            });
-
                         continue;
-                    }
 
-                    // ================== DUPLICIDADE ==================
-
-                    var existe =
-                        await unitOfWork.IntimacaoRepository
-                            .ExisteDuplicidadeAsync(
-                                processo.Id,
-                                dataIntimacao,
-                                texto);
+                    var existe = await unitOfWork.IntimacaoRepository
+                        .ExisteDuplicidadeAsync(processo.Id, dataIntimacao, texto);
 
                     if (existe)
-                    {
-                        response.Duplicadas.Add(
-                            new IntimacaoDuplicadaResponse
-                            {
-                                NumeroProcesso = numeroProcesso,
-
-                                DataIntimacao = dataIntimacao,
-
-                                Motivo = "Intimação já cadastrada."
-                            });
-
                         continue;
-                    }
 
-                    // ================== CRIA ENTIDADE ==================
+                    var intimacao = new Intimacao
+                    {
+                        ProcessoId = processo.Id,
+                        DataImportacao = DateTime.Now,
+                        DataIntimacao = dataIntimacao,
+                        TextoIntimacao = texto,
+                        StatusTriagem = StatusTriagem.PendenteDeLeitura,
+                        StatusCumprimento = StatusCumprimento.Pendente
+                    };
 
-                    var intimacao =
-                        new Intimacao
-                        {
-                            ProcessoId = processo.Id,
+                    await unitOfWork.IntimacaoRepository.AddAsync(intimacao);
 
-                            DataImportacao = DateTime.Now,
-
-                            DataIntimacao = dataIntimacao,
-
-                            TextoIntimacao = texto,
-
-                            StatusTriagem =
-                                StatusTriagem.PendenteDeLeitura,
-
-                            StatusCumprimento =
-                                StatusCumprimento.Pendente
-                        };
-
-                    await unitOfWork.IntimacaoRepository
-                        .AddAsync(intimacao);
-
-                    // ================== RESPONSE ==================
-
-                    response.Importadas.Add(
-                        new IntimacaoImportadaResponse
-                        {
-                            IntimacaoId = intimacao.Id,
-
-                            NumeroProcesso =
-                                processo.NumeroProcesso,
-
-                            DataIntimacao =
-                                intimacao.DataIntimacao,
-
-                            TextoIntimacao =
-                                intimacao.TextoIntimacao
-                        });
+                    response.Importadas.Add(new IntimacaoImportadaResponse
+                    {
+                        IntimacaoId = intimacao.Id,
+                        NumeroProcesso = processo.NumeroProcesso,
+                        DataIntimacao = dataIntimacao,
+                        TextoIntimacao = texto
+                    });
                 }
-                catch (Exception ex)
-                {
-                    response.Erros.Add(
-                        ex.Message);
-                }
+
+                await unitOfWork.CommitAsync();
+                return response;
             }
-
-            // ================== TOTALIZADORES ==================
-
-            response = response with
+            catch
             {
-                TotalImportadas =
-                    response.Importadas.Count,
+                await unitOfWork.RollbackAsync();
+                throw;
+            }
+        }
+        public async Task DistribuirParaAdvogadoAsync(Guid intimacaoId, Guid advogadoId)
+        {
+            await unitOfWork.BeginTransactionAsync();
 
-                TotalDuplicadas =
-                    response.Duplicadas.Count,
+            try
+            {
+                var usuarioId = ObterUsuarioId()
+                    ?? throw new InvalidOperationException("Usuário não autenticado.");
 
-                TotalProcessosNaoEncontrados =
-                    response.ProcessosNaoEncontrados.Count,
+                var intimacao = await unitOfWork.IntimacaoRepository.GetByIdAsync(intimacaoId)
+                    ?? throw new InvalidOperationException("Intimação não encontrada.");
 
-                TotalErros =
-                    response.Erros.Count
-            };
+                var advogado = await unitOfWork.UsuarioRepository.GetByIdAsync(advogadoId)
+                    ?? throw new InvalidOperationException("Advogado não encontrado.");
 
-            // ================== COMMIT ==================
+                if (intimacao.LoteId.HasValue)
+                    throw new InvalidOperationException("Já pertence a lote.");
 
-            await unitOfWork.CommitAsync();
+                var antes = new { intimacao.AdvogadoId, intimacao.LoteId };
 
-            return response;
+                intimacao.AdvogadoId = advogadoId;
+                intimacao.LoteId = null;
+                intimacao.StatusTriagem = StatusTriagem.Triada;
+
+                await unitOfWork.IntimacaoRepository.UpdateAsync(intimacao);
+
+                await historicoGeralService.RegistrarAsync(
+                    TipoEntidade.Intimacao,
+                    intimacao.Id,
+                    usuarioId,
+                    antes,
+                    new { intimacao.AdvogadoId, intimacao.LoteId },
+                    "Distribuição para advogado"
+                );
+
+                await unitOfWork.CommitAsync();
+            }
+            catch
+            {
+                await unitOfWork.RollbackAsync();
+                throw;
+            }
+        }
+        public async Task<List<Intimacao>> GetNaoTriadasAsync()
+        {
+            return await unitOfWork.IntimacaoRepository.GetNaoTriadasAsync();
         }
 
-      
+        public async Task<List<Intimacao>> BuscarPorProcessoAsync(string numeroProcesso)
+        {
+            if (string.IsNullOrWhiteSpace(numeroProcesso))
+                throw new InvalidOperationException("Número do processo inválido.");
+
+            return await unitOfWork.IntimacaoRepository.BuscarPorProcessoAsync(numeroProcesso);
+        }
+
+        public async Task<int> CountPorStatusAsync(StatusTriagem status)
+        {
+            return await unitOfWork.IntimacaoRepository.CountPorStatusTriagemAsync(status);
+        }
+
+        public async Task<int> CountPorLoteAsync(Guid loteId)
+        {
+            return await unitOfWork.IntimacaoRepository.CountPorLoteAsync(loteId);
+        }
+
+        public async Task<int> CountPorAdvogadoAsync(Guid advogadoId)
+        {
+            return await unitOfWork.IntimacaoRepository.CountPorAdvogadoAsync(advogadoId);
+        }
+
+
     }
 }
 

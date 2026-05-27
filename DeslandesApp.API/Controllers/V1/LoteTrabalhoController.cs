@@ -50,7 +50,7 @@ namespace DeslandesApp.API.Controllers.V1
                 data = response
             });
         }
-        [HttpDelete("exluir-lote-de-trabalho/{id}")]
+        [HttpDelete("excluir-lote-de-trabalho/{id}")]
         public async Task<IActionResult> DeleteAsync(Guid id)
         {
             await loteTrabalholService.ExcluirAsync(id);
@@ -61,13 +61,26 @@ namespace DeslandesApp.API.Controllers.V1
                 message = "Lote removida com sucesso."
             });
         }
-        [HttpGet("consular-lote-de-trabalho-por-id/{id}")]
+        [HttpGet("consultar-lote-de-trabalho-por-id/{id}")]
         [ProducesResponseType(typeof(LoteTrabalhoResponse), 200)]
         public async Task<IActionResult> GetByIdAsync(Guid id)
         {
             var response = await loteTrabalholService.ObterPorIdAsync(id);
 
             return Ok(response);
+        }
+        [HttpGet("ativos")]
+        public async Task<IActionResult> GetAtivos()
+        {
+            var result = await loteTrabalholService.ListarAtivosAsync();
+            return Ok(result);
+        }
+
+        [HttpGet("por-responsavel/{responsavelId}")]
+        public async Task<IActionResult> GetPorResponsavel(Guid responsavelId)
+        {
+            var result = await loteTrabalholService.BuscarPorResponsavelAsync(responsavelId);
+            return Ok(result);
         }
     }
 }

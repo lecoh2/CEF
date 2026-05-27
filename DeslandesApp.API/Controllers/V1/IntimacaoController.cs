@@ -143,5 +143,84 @@ namespace DeslandesApp.API.Controllers.V1
                 data = result
             });
         }
+        [HttpGet("pendentes")]
+        public async Task<IActionResult> GetPendentes()
+        {
+            var result = await intimacaoService.GetPendentesAsync();
+            return Ok(result);
+        }
+        // =========================
+        // PENDENTES DE TRIAGEM
+        // =========================
+        [HttpGet("pendentes-triagem")]
+        public async Task<IActionResult> GetPendentesTriagem()
+        {
+            var result = await intimacaoService.GetNaoTriadasAsync();
+
+            return Ok(new
+            {
+                success = true,
+                data = result
+            });
+        }
+        // =========================
+        // BUSCAR POR PROCESSO
+        // =========================
+        [HttpGet("buscar-por-processo")]
+        public async Task<IActionResult> BuscarPorProcesso([FromQuery] string numeroProcesso)
+        {
+            var result = await intimacaoService.BuscarPorProcessoAsync(numeroProcesso);
+
+            return Ok(new
+            {
+                success = true,
+                data = result
+            });
+        }
+
+        // =========================
+        // CONTAGEM POR STATUS
+        // =========================
+        [HttpGet("count-status")]
+        public async Task<IActionResult> CountPorStatus([FromQuery] StatusTriagem status)
+        {
+            var result = await intimacaoService.CountPorStatusAsync(status);
+
+            return Ok(new
+            {
+                success = true,
+                data = result
+            });
+        }
+
+        // =========================
+        // CONTAGEM POR LOTE
+        // =========================
+        [HttpGet("count-lote/{loteId}")]
+        public async Task<IActionResult> CountPorLote(Guid loteId)
+        {
+            var result = await intimacaoService.CountPorLoteAsync(loteId);
+
+            return Ok(new
+            {
+                success = true,
+                data = result
+            });
+        }
+
+        // =========================
+        // CONTAGEM POR ADVOGADO
+        // =========================
+        [HttpGet("count-advogado/{advogadoId}")]
+        public async Task<IActionResult> CountPorAdvogado(Guid advogadoId)
+        {
+            var result = await intimacaoService.CountPorAdvogadoAsync(advogadoId);
+
+            return Ok(new
+            {
+                success = true,
+                data = result
+            });
+        }
     }
 }

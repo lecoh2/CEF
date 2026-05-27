@@ -21,50 +21,35 @@ namespace DeslandesApp.Infra.Data.Repositories
         {
             return await dataContext.Intimacao
                 .AsNoTracking()
-                .Where(x => x.Id == id)
-
                 .Include(x => x.Processo)
-
                 .Include(x => x.PecaCabivel)
-
                 .Include(x => x.Advogado)
-
                 .Include(x => x.Lote)
-
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(x => x.Id == id);
         }
 
         public async Task<PageResult<IntimacaoPaginacaoResponse>> GetIntimacaoPaginacaoAsync(
-     int pageNumber,
-     int pageSize,
-     string? searchTerm = null)
+             int pageNumber,
+             int pageSize,
+             string? searchTerm = null)
         {
             var query = dataContext.Intimacao
                 .AsNoTracking()
                 .AsQueryable();
 
-            // =========================
-            // FILTRO
-            // =========================
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
                 var term = searchTerm.Trim().ToLower();
 
                 query = query.Where(x =>
-                    x.Processo.NumeroProcesso.Contains(term) ||
-                    x.Advogado.NomeUsuario.Contains(term) ||
-                    (x.PecaCabivel != null && x.PecaCabivel.NomePeca.Contains(term))
+                    x.Processo.NumeroProcesso.ToLower().Contains(term) ||
+                    (x.Advogado != null && x.Advogado.NomeUsuario.ToLower().Contains(term)) ||
+                    (x.PecaCabivel != null && x.PecaCabivel.NomePeca.ToLower().Contains(term))
                 );
             }
 
-            // =========================
-            // TOTAL
-            // =========================
-            var totalCount = await query.CountAsync();
+            var total = await query.CountAsync();
 
-            // =========================
-            // PAGINAÇÃO
-            // =========================
             var items = await query
                 .OrderByDescending(x => x.DataIntimacao)
                 .Skip((pageNumber - 1) * pageSize)
@@ -75,16 +60,14 @@ namespace DeslandesApp.Infra.Data.Repositories
                     NumeroProcesso = x.Processo.NumeroProcesso,
                     DataIntimacao = x.DataIntimacao,
                     StatusTriagem = x.StatusTriagem,
-                    NomePecaCabivel = x.PecaCabivel != null
-                        ? x.PecaCabivel.NomePeca
-                        : null
+                    NomePecaCabivel = x.PecaCabivel != null ? x.PecaCabivel.NomePeca : null
                 })
                 .ToListAsync();
 
             return new PageResult<IntimacaoPaginacaoResponse>
             {
                 Items = items,
-                TotalCount = totalCount,
+                TotalCount = total,
                 PageNumber = pageNumber,
                 PageSize = pageSize
             };
@@ -93,28 +76,18 @@ namespace DeslandesApp.Infra.Data.Repositories
         {
             return await dataContext.Intimacao
                 .AsNoTracking()
-                .Where(x => x.Id == id)
-
-                // PROCESSO
                 .Include(x => x.Processo)
                     .ThenInclude(p => p.Vara)
-
-                // PEÇA CABÍVEL
                 .Include(x => x.PecaCabivel)
-
-                // ADVOGADO
                 .Include(x => x.Advogado)
-
-                // LOTE
                 .Include(x => x.Lote)
-
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(x => x.Id == id);
         }
         public async Task<PageResult<IntimacaoPaginacaoResponse>> ConsultarParaTriagemAsync(
-    DateTime? data,
-    StatusTriagem? status,
-    int pageNumber,
-    int pageSize)
+           DateTime? data,
+           StatusTriagem? status,
+           int pageNumber,
+           int pageSize)
         {
             var query = dataContext.Intimacao
                 .AsNoTracking()
@@ -186,21 +159,53 @@ namespace DeslandesApp.Infra.Data.Repositories
                 Concluidas = concluidas
             };
         }
-        public async Task<bool> ExisteDuplicidadeAsync(
-    Guid processoId,
-    DateTime dataIntimacao,
-    string texto)
+        public async Task<bool> ExisteDuplicidadeAsync(Guid processoId, DateTime dataIntimacao, string texto)
+        {
+            return await dataContext.Intimacao.AnyAsync(x =>
+                x.ProcessoId == processoId &&
+                x.DataIntimacao.Date == dataIntimacao.Date &&
+                x.TextoIntimacao == texto
+            );
+        }
+        // =========================
+        // 🔥 NOVOS MÉTODOS (IMPORTANTE)
+        // =========================
+
+        public async Task<List<Intimacao>> GetNaoTriadasAsync()
         {
             return await dataContext.Intimacao
-                .AnyAsync(x =>
+                .AsNoTracking()
+                .Where(x => x.StatusTriagem == StatusTriagem.PendenteDeLeitura)
+                .OrderBy(x => x.DataIntimacao)
+                .ToListAsync();
+        }
+        public async Task<int> CountPorStatusTriagemAsync(StatusTriagem status)
+        {
+            return await dataContext.Intimacao
+                .CountAsync(x => x.StatusTriagem == status);
+        }
 
-                    x.ProcessoId == processoId &&
+        public async Task<int> CountPorLoteAsync(Guid loteId)
+        {
+            return await dataContext.Intimacao
+                .CountAsync(x => x.LoteId == loteId);
+        }
 
-                    x.DataIntimacao.Date ==
-                        dataIntimacao.Date &&
+        public async Task<int> CountPorAdvogadoAsync(Guid advogadoId)
+        {
+            return await dataContext.Intimacao
+                .CountAsync(x => x.AdvogadoId == advogadoId);
+        }
 
-                    x.TextoIntimacao == texto
-                );
+        public async Task<List<Intimacao>> BuscarPorProcessoAsync(string numeroProcesso)
+        {
+            var term = numeroProcesso.Trim().ToLower();
+
+            return await dataContext.Intimacao
+                .AsNoTracking()
+                .Include(x => x.Processo)
+                .Where(x => x.Processo.NumeroProcesso.ToLower().Contains(term))
+                .ToListAsync();
         }
     }
 }

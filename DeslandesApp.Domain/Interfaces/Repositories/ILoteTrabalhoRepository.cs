@@ -14,5 +14,9 @@ namespace DeslandesApp.Domain.Interfaces.Repositories
     {
         Task<PageResult<LoteTrabalhoPaginacaoResponse>> GetLoteTrabalhoPaginacaoAsync(int pageNumber, int pageSize, string? searchTerm = null);
         Task<LoteTrabalho?> ObterCompletoPorIdAsync(Guid id);
+        Task<LoteTrabalho?> ObterUltimoLoteAsync();
+        Task<bool> ExisteNumeroLoteAsync(string numero);
+        Task<List<LoteTrabalho>> GetAllAtivosAsync();
+        Task<List<LoteTrabalho>> ObterPorResponsavelAsync(Guid responsavelId);
     }
 }

@@ -2,6 +2,7 @@
 using DeslandesApp.Domain.Models.Dtos.Responses.Intimacao;
 using DeslandesApp.Domain.Models.Dtos.Responses.LoteTrabalho;
 using DeslandesApp.Domain.Models.Dtos.Responses.PecaCabivel;
+using DeslandesApp.Domain.Models.Entities;
 using DeslandesApp.Domain.Models.Enum;
 using DeslandesApp.Domain.Models.Enum.DeslandesApp.Domain.Models.Enum;
 using DeslandesApp.Domain.Utils;
@@ -37,6 +38,12 @@ namespace DeslandesApp.Domain.Interfaces.Services
      int pageSize);
         Task<IntimacaoDashboardResponse> GetDashboardAsync();
         Task<ResultadoImportacaoIntimacaoResponse>ImportarAsync(IFormFile arquivo);
+        Task<List<Intimacao>> GetNaoTriadasAsync();
+        Task<List<Intimacao>> BuscarPorProcessoAsync(string numeroProcesso);
+
+        Task<int> CountPorStatusAsync(StatusTriagem status);
+        Task<int> CountPorLoteAsync(Guid loteId);
+        Task<int> CountPorAdvogadoAsync(Guid advogadoId);
 
     }
 }

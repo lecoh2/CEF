@@ -13,5 +13,7 @@ namespace DeslandesApp.Domain.Interfaces.Services
     {
         Task<PageResult<LoteTrabalhoPaginacaoResponse>> ConsultarLoteTrabalhoPaginacaoAsync(int pageNumber, int pageSize, string? searchTerm = null);
         Task<ObterLoteTrabalhoResponse?> ObterPorIdAsync(Guid id);
+        Task<List<LoteTrabalhoResponse>> ListarAtivosAsync();
+        Task<List<LoteTrabalhoResponse>> BuscarPorResponsavelAsync(Guid responsavelId)
     }
 }

@@ -27,6 +27,11 @@ namespace DeslandesApp.Domain.Interfaces.Repositories
     Guid processoId,
     DateTime dataIntimacao,
     string texto);
+        Task<List<Intimacao>> GetNaoTriadasAsync();
+        Task<int> CountPorStatusTriagemAsync(StatusTriagem status);
+        Task<int> CountPorLoteAsync(Guid loteId);
+        Task<int> CountPorAdvogadoAsync(Guid advogadoId);
+        Task<List<Intimacao>> BuscarPorProcessoAsync(string numeroProcesso);
     }
 }
 

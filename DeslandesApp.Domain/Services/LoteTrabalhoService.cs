@@ -45,14 +45,13 @@ namespace DeslandesApp.Domain.Services
                     .GetByIdAsync(coordenadorId)
                     ?? throw new InvalidOperationException("Coordenador não encontrado.");
 
-                var ultimoLote = (await unitOfWork.LoteTrabalhoRepository.GetAllAsync())
-                    .OrderByDescending(x => x.DataCriacao)
-                    .FirstOrDefault();
+                // 🔥 AGORA CORRETO (sem GetAll)
+                var ultimoLote = await unitOfWork.LoteTrabalhoRepository
+                    .ObterUltimoLoteAsync();
 
                 var sequencial = 1;
 
-                if (!string.IsNullOrEmpty(ultimoLote?.NumeroLote) &&
-                    ultimoLote.NumeroLote.Contains("-"))
+                if (!string.IsNullOrWhiteSpace(ultimoLote?.NumeroLote))
                 {
                     var partes = ultimoLote.NumeroLote.Split('-');
 
@@ -60,10 +59,12 @@ namespace DeslandesApp.Domain.Services
                         sequencial = num + 1;
                 }
 
+                var numeroLote = $"LOT-{DateTime.Now.Year}-{sequencial:D4}";
+
                 var lote = new LoteTrabalho
                 {
                     Id = Guid.NewGuid(),
-                    NumeroLote = $"LOT-{DateTime.Now.Year}-{sequencial:D4}",
+                    NumeroLote = numeroLote,
                     ResponsavelId = request.ResponsavelId,
                     CoordenadorId = coordenadorId,
                     DataCriacao = DateTime.Now,
@@ -72,7 +73,7 @@ namespace DeslandesApp.Domain.Services
                 };
 
                 if (lote.DataPrazoLote.Date < DateTime.Today)
-                    throw new InvalidOperationException("Prazo do lote não pode ser menor que hoje.");
+                    throw new InvalidOperationException("Prazo inválido.");
 
                 await unitOfWork.LoteTrabalhoRepository.AddAsync(lote);
                 await unitOfWork.CommitAsync();
@@ -263,19 +264,29 @@ namespace DeslandesApp.Domain.Services
             }
         }
 
-
         public async Task<ObterLoteTrabalhoResponse?> ObterPorIdAsync(Guid id)
         {
             var lote = await unitOfWork.LoteTrabalhoRepository
                 .ObterCompletoPorIdAsync(id);
 
-            if (lote == null)
-                return null;
-
-            return mapper.Map<ObterLoteTrabalhoResponse>(lote);
+            return lote == null
+                ? null
+                : mapper.Map<ObterLoteTrabalhoResponse>(lote);
         }
 
+        public async Task<List<LoteTrabalhoResponse>> ListarAtivosAsync()
+        {
+            var lista = await unitOfWork.LoteTrabalhoRepository.GetAllAtivosAsync();
 
+            return mapper.Map<List<LoteTrabalhoResponse>>(lista);
+        }
+        public async Task<List<LoteTrabalhoResponse>> BuscarPorResponsavelAsync(Guid responsavelId)
+        {
+            var lista = await unitOfWork.LoteTrabalhoRepository
+                .ObterPorResponsavelAsync(responsavelId);
+
+            return mapper.Map<List<LoteTrabalhoResponse>>(lista);
+        }
     }
 }
 
